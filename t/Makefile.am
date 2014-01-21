@@ -1,4 +1,4 @@
-TESTBIN = basic md5
+TESTBIN = basic md5 filename
 
 noinst_PROGRAMS = wrap $(TESTBIN)
 

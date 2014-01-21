@@ -3,6 +3,7 @@
 /*.o
 /basic
 /core
+/filename
 /md5
 /md5.data
 /tags

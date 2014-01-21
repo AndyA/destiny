@@ -10,12 +10,14 @@ bin_PROGRAMS = destiny
 
 libdestiny_la_SOURCES = \
 	digest.c digest.h \
+	filename.c filename.h \
 	manifest.c manifest.h \
+	utils.c utils.h \
 	md5.c md5.h
 
 libdestiny_la_LDFLAGS = -avoid-version
 
-destiny_SOURCES = main.c utils.c
+destiny_SOURCES = main.c
 destiny_LDADD = libdestiny.la
 
 test: all
