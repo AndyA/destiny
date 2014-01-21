@@ -3,7 +3,7 @@
 /*.o
 /basic
 /core
-/destiny
-/parse
+/md5
+/md5.data
 /tags
 /wrap
