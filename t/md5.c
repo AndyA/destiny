@@ -28,7 +28,7 @@ static void md5(char *out, const char *in, size_t len) {
   md5_ctxt ctx;
 
   md5_init(&ctx);
-  md5_loop(&ctx, (uint8_t *) in, (unsigned) len);
+  md5_loop(&ctx, (uint8_t *) in, len);
   md5_pad(&ctx);
   md5_result(digest, &ctx);
   to_hex(out, digest);
@@ -53,6 +53,7 @@ int main(void) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
+
 
 
 
