@@ -134,7 +134,7 @@ void md5_init(md5_ctxt *ctxt) {
   ctxt->md5_stb = MD5_B0;
   ctxt->md5_stc = MD5_C0;
   ctxt->md5_std = MD5_D0;
-  bzero(ctxt->md5_buf, sizeof(ctxt->md5_buf));
+  memset(ctxt->md5_buf, 0, sizeof(ctxt->md5_buf));
 }
 
 void md5_loop(md5_ctxt *ctxt, const uint8_t *input, size_t len) {
@@ -378,3 +378,5 @@ static void md5_calc(uint8_t *b64, md5_ctxt *ctxt) {
   ctxt->md5_stc += C;
   ctxt->md5_std += D;
 }
+
+
