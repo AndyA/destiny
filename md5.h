@@ -64,6 +64,7 @@ void md5_init(md5_ctxt *ctxt);
 void md5_loop(md5_ctxt *ctxt, const uint8_t *input, size_t len);
 void md5_pad(md5_ctxt *ctxt);
 void md5_result(uint8_t *digest, md5_ctxt *ctxt);
+void md5_hex(char *out, md5_ctxt *ctxt);
 
 #endif /* ! _MD5_H_*/
 

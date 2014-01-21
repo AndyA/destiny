@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "md5.h"
@@ -228,6 +229,19 @@ void md5_result(uint8_t *digest, md5_ctxt *ctxt) {
 #endif
 }
 
+void md5_hex(char *out, md5_ctxt *ctxt) {
+  uint8_t digest[16];
+
+  md5_result(digest, ctxt);
+
+  sprintf(out,
+          "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+          digest[0], digest[1], digest[2], digest[3],
+          digest[4], digest[5], digest[6], digest[7],
+          digest[8], digest[9], digest[10], digest[11],
+          digest[12], digest[13], digest[14], digest[15]);
+}
+
 static void md5_calc(uint8_t *b64, md5_ctxt *ctxt) {
   uint32_t A = ctxt->md5_sta;
   uint32_t B = ctxt->md5_stb;
@@ -378,5 +392,4 @@ static void md5_calc(uint8_t *b64, md5_ctxt *ctxt) {
   ctxt->md5_stc += C;
   ctxt->md5_std += D;
 }
-
 
