@@ -378,15 +378,3 @@ static void md5_calc(uint8_t *b64, md5_ctxt *ctxt) {
   ctxt->md5_stc += C;
   ctxt->md5_std += D;
 }
-
-
-
-
-
-
-
-
-
-
-
-

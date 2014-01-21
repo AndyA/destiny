@@ -13,7 +13,7 @@ wrap_LDADD =
 wrap_LDFLAGS =
 wrap_CFLAGS =
 
-md5.c: md4.data
+md5.c: md5.data
 
 md5.data: md5gen.pl
 	perl md5gen.pl > md5.data

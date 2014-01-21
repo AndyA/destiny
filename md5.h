@@ -67,7 +67,3 @@ void md5_result(uint8_t *digest, md5_ctxt *ctxt);
 
 #endif /* ! _MD5_H_*/
 
-
-
-
-
