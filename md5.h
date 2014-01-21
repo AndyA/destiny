@@ -67,4 +67,3 @@ void md5_result(uint8_t *digest, md5_ctx *ctx);
 void md5_hex(char *out, md5_ctx *ctx);
 
 #endif /* ! _MD5_H_*/
-
