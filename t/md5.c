@@ -15,7 +15,7 @@ static struct {
 };
 
 static void md5(char *out, const char *in, size_t len) {
-  md5_ctxt ctx;
+  md5_ctx ctx;
 
   md5_init(&ctx);
   md5_loop(&ctx, (uint8_t *) in, len);

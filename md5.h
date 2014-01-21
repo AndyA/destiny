@@ -58,13 +58,13 @@ typedef struct {
 
   unsigned md5_i;
   uint8_t  md5_buf[MD5_BUFLEN];
-} md5_ctxt;
+} md5_ctx;
 
-void md5_init(md5_ctxt *ctxt);
-void md5_loop(md5_ctxt *ctxt, const uint8_t *input, size_t len);
-void md5_pad(md5_ctxt *ctxt);
-void md5_result(uint8_t *digest, md5_ctxt *ctxt);
-void md5_hex(char *out, md5_ctxt *ctxt);
+void md5_init(md5_ctx *ctx);
+void md5_loop(md5_ctx *ctx, const uint8_t *input, size_t len);
+void md5_pad(md5_ctx *ctx);
+void md5_result(uint8_t *digest, md5_ctx *ctx);
+void md5_hex(char *out, md5_ctx *ctx);
 
 #endif /* ! _MD5_H_*/
 

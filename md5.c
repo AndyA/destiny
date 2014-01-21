@@ -126,113 +126,113 @@ static const uint8_t md5_paddat[MD5_BUFLEN] = {
   0,  0,  0,  0,  0,  0,  0,  0,
 };
 
-static void md5_calc(uint8_t *, md5_ctxt *);
+static void md5_calc(uint8_t *, md5_ctx *);
 
-void md5_init(md5_ctxt *ctxt) {
-  ctxt->md5_n = 0;
-  ctxt->md5_i = 0;
-  ctxt->md5_sta = MD5_A0;
-  ctxt->md5_stb = MD5_B0;
-  ctxt->md5_stc = MD5_C0;
-  ctxt->md5_std = MD5_D0;
-  memset(ctxt->md5_buf, 0, sizeof(ctxt->md5_buf));
+void md5_init(md5_ctx *ctx) {
+  ctx->md5_n = 0;
+  ctx->md5_i = 0;
+  ctx->md5_sta = MD5_A0;
+  ctx->md5_stb = MD5_B0;
+  ctx->md5_stc = MD5_C0;
+  ctx->md5_std = MD5_D0;
+  memset(ctx->md5_buf, 0, sizeof(ctx->md5_buf));
 }
 
-void md5_loop(md5_ctxt *ctxt, const uint8_t *input, size_t len) {
+void md5_loop(md5_ctx *ctx, const uint8_t *input, size_t len) {
   size_t gap, i;
 
-  ctxt->md5_n += len * 8; /* byte to bit */
-  gap = MD5_BUFLEN - ctxt->md5_i;
+  ctx->md5_n += len * 8; /* byte to bit */
+  gap = MD5_BUFLEN - ctx->md5_i;
 
   if (len >= gap) {
-    memcpy((void *)(ctxt->md5_buf + ctxt->md5_i),
+    memcpy((void *)(ctx->md5_buf + ctx->md5_i),
            (void *)input,
            gap);
-    md5_calc(ctxt->md5_buf, ctxt);
+    md5_calc(ctx->md5_buf, ctx);
 
     for (i = gap; i + MD5_BUFLEN <= len; i += MD5_BUFLEN) {
-      md5_calc((uint8_t *)(input + i), ctxt);
+      md5_calc((uint8_t *)(input + i), ctx);
     }
 
-    ctxt->md5_i = len - i;
-    memcpy((void *)ctxt->md5_buf,
+    ctx->md5_i = len - i;
+    memcpy((void *)ctx->md5_buf,
            (void *)(input + i),
-           ctxt->md5_i);
+           ctx->md5_i);
   }
   else {
-    memcpy((void *)(ctxt->md5_buf + ctxt->md5_i),
+    memcpy((void *)(ctx->md5_buf + ctx->md5_i),
            (void *)input,
            len);
-    ctxt->md5_i += len;
+    ctx->md5_i += len;
   }
 }
 
-void md5_pad(md5_ctxt *ctxt) {
+void md5_pad(md5_ctx *ctx) {
   unsigned gap;
 
   /* Don't count up padding. Keep md5_n. */
-  gap = MD5_BUFLEN - ctxt->md5_i;
+  gap = MD5_BUFLEN - ctx->md5_i;
   if (gap > 8) {
-    memcpy((void *)(ctxt->md5_buf + ctxt->md5_i),
+    memcpy((void *)(ctx->md5_buf + ctx->md5_i),
            (void *)md5_paddat,
-           gap - sizeof(ctxt->md5_n));
+           gap - sizeof(ctx->md5_n));
   }
   else {
     /* including gap == 8 */
-    memcpy((void *)(ctxt->md5_buf + ctxt->md5_i),
+    memcpy((void *)(ctx->md5_buf + ctx->md5_i),
            (void *)md5_paddat,
            gap);
-    md5_calc(ctxt->md5_buf, ctxt);
-    memcpy((void *)ctxt->md5_buf,
+    md5_calc(ctx->md5_buf, ctx);
+    memcpy((void *)ctx->md5_buf,
            (void *)(md5_paddat + gap),
-           MD5_BUFLEN - sizeof(ctxt->md5_n));
+           MD5_BUFLEN - sizeof(ctx->md5_n));
   }
 
   /* 8 byte word */
 #if defined(WORDS_BIGENDIAN)
-  ctxt->md5_buf[56] = ctxt->md5_n8[7];
-  ctxt->md5_buf[57] = ctxt->md5_n8[6];
-  ctxt->md5_buf[58] = ctxt->md5_n8[5];
-  ctxt->md5_buf[59] = ctxt->md5_n8[4];
-  ctxt->md5_buf[60] = ctxt->md5_n8[3];
-  ctxt->md5_buf[61] = ctxt->md5_n8[2];
-  ctxt->md5_buf[62] = ctxt->md5_n8[1];
-  ctxt->md5_buf[63] = ctxt->md5_n8[0];
+  ctx->md5_buf[56] = ctx->md5_n8[7];
+  ctx->md5_buf[57] = ctx->md5_n8[6];
+  ctx->md5_buf[58] = ctx->md5_n8[5];
+  ctx->md5_buf[59] = ctx->md5_n8[4];
+  ctx->md5_buf[60] = ctx->md5_n8[3];
+  ctx->md5_buf[61] = ctx->md5_n8[2];
+  ctx->md5_buf[62] = ctx->md5_n8[1];
+  ctx->md5_buf[63] = ctx->md5_n8[0];
 #else
-  memcpy(&ctxt->md5_buf[56], &ctxt->md5_n8[0], 8);
+  memcpy(&ctx->md5_buf[56], &ctx->md5_n8[0], 8);
 #endif
 
-  md5_calc(ctxt->md5_buf, ctxt);
+  md5_calc(ctx->md5_buf, ctx);
 }
 
-void md5_result(uint8_t *digest, md5_ctxt *ctxt) {
+void md5_result(uint8_t *digest, md5_ctx *ctx) {
   /* 4 byte words */
 #if defined(WORDS_BIGENDIAN)
-  digest[ 0] = ctxt->md5_st8[ 3];
-  digest[ 1] = ctxt->md5_st8[ 2];
-  digest[ 2] = ctxt->md5_st8[ 1];
-  digest[ 3] = ctxt->md5_st8[ 0];
-  digest[ 4] = ctxt->md5_st8[ 7];
-  digest[ 5] = ctxt->md5_st8[ 6];
-  digest[ 6] = ctxt->md5_st8[ 5];
-  digest[ 7] = ctxt->md5_st8[ 4];
-  digest[ 8] = ctxt->md5_st8[11];
-  digest[ 9] = ctxt->md5_st8[10];
-  digest[10] = ctxt->md5_st8[ 9];
-  digest[11] = ctxt->md5_st8[ 8];
-  digest[12] = ctxt->md5_st8[15];
-  digest[13] = ctxt->md5_st8[14];
-  digest[14] = ctxt->md5_st8[13];
-  digest[15] = ctxt->md5_st8[12];
+  digest[ 0] = ctx->md5_st8[ 3];
+  digest[ 1] = ctx->md5_st8[ 2];
+  digest[ 2] = ctx->md5_st8[ 1];
+  digest[ 3] = ctx->md5_st8[ 0];
+  digest[ 4] = ctx->md5_st8[ 7];
+  digest[ 5] = ctx->md5_st8[ 6];
+  digest[ 6] = ctx->md5_st8[ 5];
+  digest[ 7] = ctx->md5_st8[ 4];
+  digest[ 8] = ctx->md5_st8[11];
+  digest[ 9] = ctx->md5_st8[10];
+  digest[10] = ctx->md5_st8[ 9];
+  digest[11] = ctx->md5_st8[ 8];
+  digest[12] = ctx->md5_st8[15];
+  digest[13] = ctx->md5_st8[14];
+  digest[14] = ctx->md5_st8[13];
+  digest[15] = ctx->md5_st8[12];
 #else
-  memcpy(digest, &ctxt->md5_st8[0], 16);
+  memcpy(digest, &ctx->md5_st8[0], 16);
 #endif
 }
 
-void md5_hex(char *out, md5_ctxt *ctxt) {
+void md5_hex(char *out, md5_ctx *ctx) {
   uint8_t digest[16];
 
-  md5_result(digest, ctxt);
+  md5_result(digest, ctx);
 
   sprintf(out,
           "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
@@ -242,11 +242,11 @@ void md5_hex(char *out, md5_ctxt *ctxt) {
           digest[12], digest[13], digest[14], digest[15]);
 }
 
-static void md5_calc(uint8_t *b64, md5_ctxt *ctxt) {
-  uint32_t A = ctxt->md5_sta;
-  uint32_t B = ctxt->md5_stb;
-  uint32_t C = ctxt->md5_stc;
-  uint32_t D = ctxt->md5_std;
+static void md5_calc(uint8_t *b64, md5_ctx *ctx) {
+  uint32_t A = ctx->md5_sta;
+  uint32_t B = ctx->md5_stb;
+  uint32_t C = ctx->md5_stc;
+  uint32_t D = ctx->md5_std;
 #if defined(WORDS_BIGENDIAN)
   /* 4 byte words */
   /* what a brute force but fast! */
@@ -387,9 +387,9 @@ static void md5_calc(uint8_t *b64, md5_ctxt *ctxt) {
   ROUND4(C, D, A, B,  2, So, 63);
   ROUND4(B, C, D, A,  9, Sp, 64);
 
-  ctxt->md5_sta += A;
-  ctxt->md5_stb += B;
-  ctxt->md5_stc += C;
-  ctxt->md5_std += D;
+  ctx->md5_sta += A;
+  ctx->md5_stb += B;
+  ctx->md5_stc += C;
+  ctx->md5_std += D;
 }
 
