@@ -11,7 +11,7 @@ include_HEADERS = destiny.h
 bin_PROGRAMS = destiny
 
 libdestiny_la_SOURCES = \
-	destiny.c destiny.h
+	destiny.c destiny.h md5.c md5.h
 
 libdestiny_la_LDFLAGS = -avoid-version
 
