@@ -18,4 +18,3 @@ int digest_file(const char *filename, char *digest);
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
-
