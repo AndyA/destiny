@@ -9,6 +9,7 @@
 #include "digest.h"
 #include "filename.h"
 #include "find.h"
+#include "log.h"
 #include "manifest.h"
 #include "md5.h"
 #include "utils.h"
@@ -69,6 +70,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
       scope {
         jd_var *dn = jd_nv();
         jd_pop(queue, 1, dn);
+        log_info("Scanning %V", dn);
         jd_var *files = find_read_dir(jd_nv(), dn);
         size_t nf = jd_count(files);
         for (int i = 0; i < (int) nf; i++) {
@@ -100,7 +102,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
               if (digest_file(fn, digest))
                 jd_throw("Error computing MD5: %m");
               jd_set_string(jd_get_ks(rec, "hash", 1), digest);
-              jd_printf("%s %s\n", digest, fn);
+              log_info("%s %s\n", digest, fn);
             }
 
             jd_assign(jd_get_ks(rec, "name", 1), rname);
@@ -123,10 +125,12 @@ int main(int argc, char *argv[]) {
       struct stat st;
 
       if (!stat(mf, &st)) {
+        log_info("Reading %s", mf);
         mf_load_file(prev, mf);
       }
 
       scan(list, prev, argv[i]);
+      log_info("Writing %s", mf);
       mf_save_file(list, mf);
       free(mf);
     }

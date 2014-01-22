@@ -12,9 +12,10 @@ libdestiny_la_SOURCES = \
 	digest.c digest.h \
 	filename.c filename.h \
 	find.c find.h \
+	log.c log.h \
 	manifest.c manifest.h \
-	utils.c utils.h \
-	md5.c md5.h
+	md5.c md5.h \
+	utils.c utils.h
 
 libdestiny_la_LDFLAGS = -avoid-version
 
