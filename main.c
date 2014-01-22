@@ -32,7 +32,7 @@ static jd_var *mk_file_rec(jd_var *out, const struct stat *st) {
 }
 
 static int unchanged(jd_var *ra, jd_var *rb) {
-  static const char *keys[] = { "dev", "ino", "uid", "gid", "size", "mode", "mtime" };
+  static const char *keys[] = { /*"dev", "ino", "uid", "gid",*/ "size", /*"mode",*/ "mtime" };
   for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
     if (jd_compare(jd_get_ks(ra, keys[i], 0), jd_get_ks(rb, keys[i], 0)))
       return 0;
