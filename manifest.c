@@ -26,10 +26,15 @@ static void add_by_key(jd_var *out, jd_var *rec, jd_var *keys, int pos) {
     jd_assign(mk_slot(out, key), rec);
 }
 
+jd_var *mf_add_by_keys(jd_var *out, jd_var *rec, jd_var *keys) {
+  add_by_key(out, rec, keys, 0);
+  return out;
+}
+
 jd_var *mf_by_keys(jd_var *out, jd_var *list, jd_var *keys) {
   size_t count = jd_count(list);
   for (int i = 0; i < (int) count; i++) {
-    add_by_key(out, jd_get_idx(list, i), keys, 0);
+    mf_add_by_keys(out, jd_get_idx(list, i), keys);
   }
   return out;
 }
@@ -81,3 +86,5 @@ void mf_save_file(jd_var *out, const char *fn) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
+
+

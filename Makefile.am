@@ -11,6 +11,7 @@ bin_PROGRAMS = destiny
 libdestiny_la_SOURCES = \
 	digest.c digest.h \
 	filename.c filename.h \
+	find.c find.h \
 	manifest.c manifest.h \
 	utils.c utils.h \
 	md5.c md5.h
