@@ -18,7 +18,7 @@ static jd_var *mk_file_rec(jd_var *out, const struct stat *st) {
   jd_sprintf(jd_get_ks(out, "uid", 1), "%llu", (unsigned long long) st->st_uid);
   jd_sprintf(jd_get_ks(out, "gid", 1), "%llu", (unsigned long long) st->st_gid);
   jd_sprintf(jd_get_ks(out, "size", 1), "%llu", (unsigned long long) st->st_size);
-  jd_sprintf(jd_get_ks(out, "mode", 1), "%llu",
+  jd_sprintf(jd_get_ks(out, "mode", 1), "%llo",
              (unsigned long long) st->st_mode & MODE_BITS);
   jd_sprintf(jd_get_ks(out, "mtime", 1), "%llu", (unsigned long long) st->st_mtime);
 
@@ -56,13 +56,6 @@ int main(int argc, char *argv[]) {
     jd_var *list = jd_nav(1);
     for (int i = 1; i < argc; i++) {
       scan(list, argv[i]);
-
-#if 0
-      char digest[33];
-      if (digest_file(argv[i], digest))
-        die("Digest failed: %m");
-      printf("%s %s\n", digest, argv[i]);
-#endif
     }
     jd_printf("%lJ", list);
   }
