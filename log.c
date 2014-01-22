@@ -20,7 +20,7 @@ static pthread_key_t tn_key;
 static unsigned max_name = 0;
 
 unsigned log_level  = DEBUG;
-unsigned log_colour = 1;
+int log_colour = -1;
 
 #define X(x) #x,
 static const char *lvl[] = {
@@ -78,6 +78,8 @@ unsigned log_decode_level(const char *name) {
 
 static void log(unsigned level, const char *msg, va_list ap) {
   if (level <= log_level) scope {
+    if (log_colour == -1)
+      log_colour = !!isatty(fileno(stdout));
     const char *col_on = log_colour ? lvl_col[level] : "";
     const char *col_off = log_colour ? COLOUR_RESET : "";
     char tmp[30];

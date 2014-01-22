@@ -25,7 +25,7 @@ enum {
 #undef X
 
 extern unsigned log_level;
-extern unsigned log_colour;
+extern int log_colour;
 
 unsigned log_decode_level(const char *name);
 void log_set_thread(const char *name);
