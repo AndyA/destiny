@@ -50,7 +50,7 @@ static jd_var *relname(jd_var *out, jd_var *path, const char *dir) {
 static void scan(jd_var *list, jd_var *prev, const char *dir) {
   scope {
     jd_var *by_name = mf_by_key(jd_nhv(1), prev, "name");
-    jd_var *by_ino = jd_nhv(1);
+    jd_var *by_ino = mf_by_key(jd_nhv(1), prev, "dev.ino");
     jd_var *queue = jd_nav(100);
     jd_set_string(jd_push(queue, 1), dir);
     while (jd_count(queue)) {
@@ -90,8 +90,10 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
                 jd_var *ino = jd_get_key(dev, jd_get_ks(rec, "ino", 0), 0);
                 if (ino) {
                   jd_var *prec = jd_get_idx(ino, 0);
-                  jd_var *hash = jd_get_ks(prec, "hash", 0);
-                  if (hash) jd_assign(jd_get_ks(rec, "hash", 1), hash);
+                  if (prec && unchanged(prec, rec)) {
+                    jd_var *hash = jd_get_ks(prec, "hash", 0);
+                    if (hash) jd_assign(jd_get_ks(rec, "hash", 1), hash);
+                  }
                 }
               }
             }
