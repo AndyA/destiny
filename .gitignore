@@ -21,6 +21,7 @@
 /*.o
 /*.rpm
 /.build/
+/MANIFEST.json
 /Session.vim
 /TAGS
 /autom4te.cache
