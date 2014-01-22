@@ -10,6 +10,7 @@ extern "C" {
 #include <jd_pretty.h>
 
 jd_var *mf_add_by_keys(jd_var *out, jd_var *rec, jd_var *keys);
+jd_var *mf_add_by_key(jd_var *out, jd_var *rec, const char *key);
 jd_var *mf_by_keys(jd_var *out, jd_var *list, jd_var *keys);
 jd_var *mf_by_key(jd_var *out, jd_var *list, const char *key);
 
