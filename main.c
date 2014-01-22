@@ -3,6 +3,7 @@
 #include <jd_pretty.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #include "digest.h"
@@ -62,6 +63,8 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
           struct stat st;
           jd_var *name = jd_get_idx(files, i);
           jd_var *rname = relname(jd_nv(), name, dir);
+          /* Skip MANIFEST.json itself */
+          if (!strcmp(MANIFEST, jd_bytes(rname, NULL))) continue;
           const char *fn = jd_bytes(name, NULL);
           if (lstat(fn, &st))
             jd_throw("Can't stat %s: %m", fn);
