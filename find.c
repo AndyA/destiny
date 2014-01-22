@@ -20,7 +20,7 @@ jd_var *find_read_dir(jd_var *out, jd_var *dir) {
   const char *dn = jd_bytes(dir, NULL);
   DIR *dirp = opendir(dn);
   if (dirp == NULL)
-    jd_throw("Can't open %s", dn);
+    return NULL;
   for (;;) {
     struct dirent *dp = readdir(dirp);
     if (!dp) break;
@@ -35,17 +35,3 @@ jd_var *find_read_dir(jd_var *out, jd_var *dir) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
-
-
-
-
-
-
-
-
-
-
-
-
-
-

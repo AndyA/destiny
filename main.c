@@ -1,5 +1,6 @@
 /* main.c */
 
+#include <errno.h>
 #include <jd_pretty.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +72,9 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
         jd_var *dn = jd_nv();
         jd_pop(queue, 1, dn);
         log_info("Scanning %V", dn);
-        jd_var *files = find_read_dir(jd_nv(), dn);
+        jd_var *files = jd_nav(0);
+        if (!find_read_dir(files, dn))
+          log_error("Can't read %s: %s", strerror(errno));
         size_t nf = jd_count(files);
         for (int i = 0; i < (int) nf; i++) {
           struct stat st;
@@ -80,8 +83,10 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
           /* Skip MANIFEST.json itself */
           if (!strcmp(MANIFEST, jd_bytes(rname, NULL))) continue;
           const char *fn = jd_bytes(name, NULL);
-          if (lstat(fn, &st))
-            jd_throw("Can't stat %s: %m", fn);
+          if (lstat(fn, &st)) {
+            log_error("Can't stat %s: %s", strerror(errno));
+            continue;
+          }
           if (S_ISDIR(st.st_mode)) {
             jd_assign(jd_push(queue, 1), name);
           }
@@ -99,10 +104,13 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
 
             if (!jd_get_ks(rec, "hash", 0)) {
               char digest[33];
-              if (digest_file(fn, digest))
-                jd_throw("Error computing MD5: %m");
-              jd_set_string(jd_get_ks(rec, "hash", 1), digest);
-              log_info("%s %s\n", digest, fn);
+              if (digest_file(fn, digest)) {
+                log_error("Error computing MD5: %s", strerror(errno));
+              }
+              else {
+                jd_set_string(jd_get_ks(rec, "hash", 1), digest);
+                log_info("%s %s\n", digest, fn);
+              }
             }
 
             jd_assign(jd_get_ks(rec, "name", 1), rname);
