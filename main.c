@@ -70,11 +70,13 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
     while (jd_count(queue)) {
       scope {
         jd_var *dn = jd_nv();
+        jd_var *subs = jd_nav(10);
         jd_pop(queue, 1, dn);
         log_info("Scanning %V", dn);
         jd_var *files = jd_nav(0);
         if (!find_read_dir(files, dn))
           log_error("Can't read %s: %s", strerror(errno));
+        jd_sort(files);
         size_t nf = jd_count(files);
         for (int i = 0; i < (int) nf; i++) {
           struct stat st;
@@ -88,7 +90,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
             continue;
           }
           if (S_ISDIR(st.st_mode)) {
-            jd_assign(jd_push(queue, 1), name);
+            jd_assign(jd_unshift(subs, 1), name);
           }
           else {
             jd_var *rec = mk_file_rec(jd_push(list, 1), &st);
@@ -117,6 +119,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
             mf_add_by_key(by_ino, rec, "dev.ino");
           }
         }
+        jd_append(queue, subs);
       }
     }
   }
@@ -124,6 +127,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
 
 int main(int argc, char *argv[]) {
   jd_require("0.05");
+  log_info("destiny %s", v_info);
   for (int i = 1; i < argc; i++) {
     scope {
       const char *dir = argv[i];
