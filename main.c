@@ -39,6 +39,13 @@ static int unchanged(jd_var *ra, jd_var *rb) {
   return 1;
 }
 
+static jd_var *relname(jd_var *out, jd_var *path, const char *dir) {
+  char *rel = fn_abs2rel(jd_bytes(path, NULL), dir);
+  jd_set_string(out, rel);
+  free(rel);
+  return out;
+}
+
 static void scan(jd_var *list, jd_var *prev, const char *dir) {
   scope {
     jd_var *by_name = mf_by_key(jd_nhv(1), prev, "name");
@@ -54,6 +61,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
         for (int i = 0; i < (int) nf; i++) {
           struct stat st;
           jd_var *name = jd_get_idx(files, i);
+          jd_var *rname = relname(jd_nv(), name, dir);
           const char *fn = jd_bytes(name, NULL);
           if (lstat(fn, &st))
             jd_throw("Can't stat %s: %m", fn);
@@ -64,7 +72,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
             jd_var *rec = mk_file_rec(jd_push(list, 1), &st);
 
             /* Already got one? */
-            jd_var *precs = jd_get_key(by_name, name, 0);
+            jd_var *precs = jd_get_key(by_name, rname, 0);
             if (precs) {
               jd_var *prec = jd_get_idx(precs, 0);
               if (prec && unchanged(prec, rec)) {
@@ -93,7 +101,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
               jd_printf("%s %s\n", digest, fn);
             }
 
-            jd_assign(jd_get_ks(rec, "name", 1), name);
+            jd_assign(jd_get_ks(rec, "name", 1), rname);
             mf_add_by_key(by_ino, rec, "dev.ino");
           }
         }
@@ -126,3 +134,6 @@ int main(int argc, char *argv[]) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
+
+
+
