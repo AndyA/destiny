@@ -13,12 +13,12 @@
 
 static jd_var *mk_file_rec(jd_var *out, const struct stat *st) {
   jd_set_hash(out, 10);
-  jd_sprintf(jd_get_ks(out, "dev", 1), "%llu", (unsigned long long) st->st_dev);
-  jd_sprintf(jd_get_ks(out, "ino", 1), "%llu", (unsigned long long) st->st_ino);
+  jd_sprintf(jd_get_ks(out, "dev", 1), "0x%llx", (unsigned long long) st->st_dev);
+  jd_sprintf(jd_get_ks(out, "ino", 1), "0x%llx", (unsigned long long) st->st_ino);
   jd_sprintf(jd_get_ks(out, "uid", 1), "%llu", (unsigned long long) st->st_uid);
   jd_sprintf(jd_get_ks(out, "gid", 1), "%llu", (unsigned long long) st->st_gid);
   jd_sprintf(jd_get_ks(out, "size", 1), "%llu", (unsigned long long) st->st_size);
-  jd_sprintf(jd_get_ks(out, "mode", 1), "%llo",
+  jd_sprintf(jd_get_ks(out, "mode", 1), "0%llo",
              (unsigned long long) st->st_mode & MODE_BITS);
   jd_sprintf(jd_get_ks(out, "mtime", 1), "%llu", (unsigned long long) st->st_mtime);
 
