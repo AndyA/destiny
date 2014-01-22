@@ -43,7 +43,6 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
   scope {
     jd_var *by_name = mf_by_key(jd_nhv(1), prev, "name");
     jd_var *by_ino = jd_nhv(1);
-    /*    jd_printf("by_name: %lJ", by_name);*/
     jd_var *queue = jd_nav(100);
     jd_set_string(jd_push(queue, 1), dir);
     while (jd_count(queue)) {
