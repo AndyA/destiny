@@ -20,8 +20,7 @@ static jd_var *mk_file_rec(jd_var *out, const struct stat *st) {
   jd_sprintf(jd_get_ks(out, "size", 1), "%llu", (unsigned long long) st->st_size);
   jd_sprintf(jd_get_ks(out, "mode", 1), "%llu",
              (unsigned long long) st->st_mode & MODE_BITS);
-  jd_sprintf(jd_get_ks(out, "mtime", 1), "%llu.%09llu",
-             (unsigned long long) st->st_mtimespec.tv_sec, st->st_mtimespec.tv_nsec);
+  jd_sprintf(jd_get_ks(out, "mtime", 1), "%llu", (unsigned long long) st->st_mtime);
 
   return out;
 }
@@ -72,27 +71,3 @@ int main(int argc, char *argv[]) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
