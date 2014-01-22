@@ -19,7 +19,7 @@ static jd_var *mk_slot(jd_var *hash, jd_var *key) {
 
 static void add_by_key(jd_var *out, jd_var *rec, jd_var *keys, int pos) {
   jd_var *key = jd_get_key(rec, jd_get_idx(keys, pos), 0);
-  if (!key) jd_throw("Missing value for %V", jd_get_idx(keys, pos));
+  if (!key) return;
   if (pos != (int) jd_count(keys) - 1) {
     if (out->type != HASH) jd_set_hash(out, 1);
     add_by_key(jd_get_key(out, key, 1), rec, keys, pos + 1);
