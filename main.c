@@ -85,7 +85,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
           /* Skip MANIFEST.json itself */
           if (!strcmp(MANIFEST, jd_bytes(rname, NULL))) continue;
           const char *fn = jd_bytes(name, NULL);
-          if (lstat(fn, &st)) {
+          if (stat(fn, &st)) {
             log_error("Can't stat %s: %s", strerror(errno));
             continue;
           }
