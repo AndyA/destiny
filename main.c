@@ -107,7 +107,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
             if (!jd_get_ks(rec, "hash", 0)) {
               char digest[33];
               if (digest_file(fn, digest)) {
-                log_error("Error computing MD5: %s", strerror(errno));
+                log_error("Error computing MD5 for %V: %s", name, strerror(errno));
               }
               else {
                 jd_set_string(jd_get_ks(rec, "hash", 1), digest);
