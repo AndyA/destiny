@@ -38,6 +38,7 @@ $O{host} = hostname unless defined $O{host};
 my $dbh = dbh(DB);
 
 for my $mf (@ARGV) {
+  print "Loading $mf\n";
   my $manifest    = load_manifest($mf);
   my $path        = defined $O{path} ? $O{path} : $mf;
   my $host_id     = vivify( $dbh, 'host', { name => $O{host} } );
@@ -49,6 +50,7 @@ for my $mf (@ARGV) {
     }
   );
 
+  print "Importing data\n";
   insert( $dbh, 'import', { when => time, manifest_id => $manifest_id } );
   my $import_id = $dbh->last_insert_id( undef, undef, 'import', undef );
   my $batch     = 0;
@@ -67,10 +69,33 @@ for my $mf (@ARGV) {
   $dbh->do( 'UPDATE `manifest` SET `current_id` = ? WHERE `id` = ?',
     {}, $import_id, $manifest_id );
 
+  print "Purging previous imports\n";
+  cleanup( $dbh, $manifest_id, $import_id );
+
   printf "\r%6.2f%%\n", 100;
 }
 
 $dbh->disconnect;
+
+sub cleanup {
+  my ( $dbh, $manifest_id, $import_id ) = @_;
+  my ( $sql, @bind ) = make_select(
+    'import',
+    { manifest_id => $manifest_id,
+      id          => ['<>', $import_id],
+    },
+    ['id']
+  );
+  my @ids = @{ $dbh->selectcol_arrayref( $sql, {}, @bind ) };
+  del( $dbh, 'object', { import_id => ['IN', \@ids] } );
+  del( $dbh, 'import', { id        => ['IN', \@ids] } );
+}
+
+sub del {
+  my ( $dbh, $tbl, $sel ) = @_;
+  my ( $where, @bind ) = make_where($sel);
+  $dbh->do( "DELETE FROM `$tbl` WHERE $where", {}, @bind );
+}
 
 sub load_manifest { JSON->new->decode( file(shift)->slurp ) }
 
@@ -79,6 +104,21 @@ sub dbh {
   return DBI->connect(
     sprintf( 'DBI:mysql:database=%s;host=%s', $db, HOST ),
     USER, PASS, { RaiseError => 1 } );
+}
+
+sub show_sql {
+  my ( $sql, @bind ) = @_;
+  my $next = sub {
+    my $val = shift @bind;
+    return 'NULL' unless defined $val;
+    return $val if $val =~ /^\d+(?:\.\d+)?$/;
+    $val =~ s/\\/\\\\/g;
+    $val =~ s/\n/\\n/g;
+    $val =~ s/\t/\\t/g;
+    return "'$val'";
+  };
+  $sql =~ s/\?/$next->()/eg;
+  return $sql;
 }
 
 sub vivify {
