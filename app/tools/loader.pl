@@ -62,17 +62,22 @@ for my $mf (@ARGV) {
       $batch = 0;
       printf "\r%6.2f%%", 100 * $done / @$manifest;
     }
-    defer_insert( $dbh, 'object', { %$rec, import_id => $import_id } );
+    my %nr = %$rec;
+    $nr{$_} = hex $nr{$_} for 'dev', 'ino';
+    $nr{$_} = oct $nr{$_} for 'mode';
+    $nr{import_id} = $import_id;
+
+    defer_insert( $dbh, 'object', \%nr );
   }
   flush_pending($dbh);
 
   $dbh->do( 'UPDATE `manifest` SET `current_id` = ? WHERE `id` = ?',
     {}, $import_id, $manifest_id );
 
+  printf "\r%6.2f%%\n", 100;
   print "Purging previous imports\n";
   cleanup( $dbh, $manifest_id, $import_id );
 
-  printf "\r%6.2f%%\n", 100;
 }
 
 $dbh->disconnect;
