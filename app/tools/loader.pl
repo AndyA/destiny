@@ -87,8 +87,10 @@ sub cleanup {
     ['id']
   );
   my @ids = @{ $dbh->selectcol_arrayref( $sql, {}, @bind ) };
-  del( $dbh, 'object', { import_id => ['IN', \@ids] } );
-  del( $dbh, 'import', { id        => ['IN', \@ids] } );
+  if (@ids) {
+    del( $dbh, 'object', { import_id => ['IN', \@ids] } );
+    del( $dbh, 'import', { id        => ['IN', \@ids] } );
+  }
 }
 
 sub del {
