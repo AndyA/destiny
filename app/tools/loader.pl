@@ -5,7 +5,6 @@ use warnings;
 
 use DBI;
 use Data::Dumper;
-use Getopt::Long;
 use JSON;
 use Path::Class;
 use Sys::Hostname;
@@ -18,49 +17,53 @@ use constant BATCH => 500;
 
 $| = 1;
 
-my %O = (
-  host => undef,
-  path => undef,
-);
-
 my %INSERT = ();    # defer_insert cache
-
-GetOptions(
-  'host:s' => \$O{host},
-  'path:s' => \$O{path},
-) or die;
-
-die "If path is specified only one file may be processed\n"
- if defined $O{path} && @ARGV > 1;
-
-$O{host} = hostname unless defined $O{host};
 
 my $dbh = dbh(DB);
 
 for my $mf (@ARGV) {
   print "Loading $mf\n";
-  my $manifest    = load_manifest($mf);
-  my $path        = defined $O{path} ? $O{path} : file($mf)->absolute;
-  my $host_id     = vivify( $dbh, 'host', { name => $O{host} } );
+  my $manifest = load_manifest($mf);
+
+  my ( $list, $meta )
+   = 'ARRAY' eq ref $manifest
+   ? (
+    $manifest,
+    { manifest => file($mf)->absolute,
+      root     => file($mf)->absolute->parent,
+      host     => hostname,
+      time     => time
+    }
+   )
+   : @{$manifest}{ 'object', 'meta' };
+
+  my $host_id = vivify( $dbh, 'host', { name => $meta->{host} } );
   my $manifest_id = vivify(
     $dbh,
     'manifest',
     { host_id => $host_id,
-      path    => "$path"
+      root    => $meta->{root},
     }
   );
 
   print "Importing data\n";
-  insert( $dbh, 'import', { when => time, manifest_id => $manifest_id } );
+  insert(
+    $dbh, 'import',
+    { manifest_id => $manifest_id,
+      manifest    => $meta->{manifest},
+      time        => $meta->{time},
+    },
+  );
   my $import_id = $dbh->last_insert_id( undef, undef, 'import', undef );
   my $batch     = 0;
   my $done      = 0;
-  for my $rec (@$manifest) {
+
+  for my $rec (@$list) {
     if ( ++$batch >= BATCH ) {
       flush_pending($dbh);
       $done += $batch;
       $batch = 0;
-      printf "\r%6.2f%%", 100 * $done / @$manifest;
+      printf "\r%6.2f%%", 100 * $done / @$list;
     }
     my %nr = %$rec;
     $nr{$_} = hex $nr{$_} for 'dev', 'ino';

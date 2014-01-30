@@ -50,7 +50,8 @@ DROP TABLE IF EXISTS `import`;
 CREATE TABLE `import` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `manifest_id` int(10) unsigned DEFAULT NULL,
-  `when` int(10) unsigned NOT NULL,
+  `manifest` varchar(2048) DEFAULT NULL,
+  `time` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -75,7 +76,7 @@ CREATE TABLE `manifest` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `current_id` int(10) unsigned DEFAULT NULL,
   `host_id` int(10) unsigned NOT NULL,
-  `path` varchar(2048) DEFAULT NULL,
+  `root` varchar(2048) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -138,4 +139,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-01-29 20:15:36
+-- Dump completed on 2014-01-30 16:20:15
