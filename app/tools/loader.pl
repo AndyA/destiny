@@ -40,13 +40,13 @@ my $dbh = dbh(DB);
 for my $mf (@ARGV) {
   print "Loading $mf\n";
   my $manifest    = load_manifest($mf);
-  my $path        = defined $O{path} ? $O{path} : $mf;
+  my $path        = defined $O{path} ? $O{path} : file($mf)->absolute;
   my $host_id     = vivify( $dbh, 'host', { name => $O{host} } );
   my $manifest_id = vivify(
     $dbh,
     'manifest',
     { host_id => $host_id,
-      path    => $path
+      path    => "$path"
     }
   );
 
