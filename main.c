@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "digest.h"
 #include "filename.h"
@@ -125,25 +126,53 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
   }
 }
 
+static jd_var *new_manifest(jd_var *out) {
+  jd_set_hash(out, 2);
+  jd_set_hash(jd_get_ks(out, "meta", 1), 10);
+  jd_set_array(jd_get_ks(out, "object", 1), 1);
+  return out;
+}
+
+char *manifest_name(const char *dir) {
+  char *rmf = fn_splice(dir, MANIFEST);
+  char *mf = fn_rel2abs(rmf, NULL);
+  free(rmf);
+  return mf;
+}
+
+void set_meta(jd_var *manifest, const char *mf) {
+  char hostname[256];
+  jd_var *meta = jd_get_ks(manifest, "meta", 1);
+  if (meta->type != HASH) jd_set_hash(meta, 10);
+  jd_set_string(jd_get_ks(meta, "manifest", 1), mf);
+  if (gethostname(hostname, sizeof(hostname)))
+    jd_throw("Can't get hostname: %s", strerror(errno));
+  jd_set_string(jd_get_ks(meta, "host", 1), hostname);
+}
+
 int main(int argc, char *argv[]) {
   jd_require("0.05");
   log_info("destiny %s", v_info);
   for (int i = 1; i < argc; i++) {
     scope {
       const char *dir = argv[i];
-      char *mf = fn_splice(dir, MANIFEST);
-      jd_var *list = jd_nav(1);
+      char *mf = manifest_name(dir);
+      jd_var *manifest = new_manifest(jd_nv());
+      jd_var *list = jd_get_ks(manifest, "object", 0);
       jd_var *prev = jd_nav(1);
       struct stat st;
 
       if (!stat(mf, &st)) {
         log_info("Reading %s", mf);
-        mf_load_file(prev, mf);
+        jd_var *prevm = mf_upgrade(jd_nv(), mf_load_file(jd_nv(), mf));
+        prev = jd_get_ks(prevm, "object", 0);
       }
 
       scan(list, prev, argv[i]);
+      set_meta(manifest, mf);
+
       log_info("Writing %s", mf);
-      mf_save_file(list, mf);
+      mf_save_file(manifest, mf);
       free(mf);
     }
   }

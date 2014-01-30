@@ -93,6 +93,17 @@ void mf_save_file(jd_var *out, const char *fn) {
   fclose(fl);
 }
 
+jd_var *mf_upgrade(jd_var *out, jd_var *in) {
+  if (in->type == ARRAY) {
+    jd_set_hash(out, 2);
+    jd_set_hash(jd_get_ks(out, "meta", 1), 10);
+    jd_assign(jd_get_ks(out, "object", 1), in);
+    return out;
+  }
+
+  return jd_assign(out, in);
+}
+
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
 

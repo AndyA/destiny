@@ -18,6 +18,7 @@ jd_var *mf_load_string(jd_var *out, FILE *f);
 jd_var *mf_load_json(jd_var *out, FILE *f);
 jd_var *mf_load_file(jd_var *out, const char *fn);
 void mf_save_file(jd_var *out, const char *fn);
+jd_var *mf_upgrade(jd_var *out, jd_var *in);
 
 #ifdef __cplusplus
 }
