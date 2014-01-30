@@ -76,7 +76,7 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
         log_info("Scanning %V", dn);
         jd_var *files = jd_nav(0);
         if (!find_read_dir(files, dn))
-          log_error("Can't read %s: %s", strerror(errno));
+          log_error("Can't read %s: %s", dn, strerror(errno));
         jd_sort(files);
         size_t nf = jd_count(files);
         for (int i = 0; i < (int) nf; i++) {
