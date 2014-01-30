@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "digest.h"
@@ -133,21 +134,16 @@ static jd_var *new_manifest(jd_var *out) {
   return out;
 }
 
-char *manifest_name(const char *dir) {
-  char *rmf = fn_splice(dir, MANIFEST);
-  char *mf = fn_rel2abs(rmf, NULL);
-  free(rmf);
-  return mf;
-}
-
-void set_meta(jd_var *manifest, const char *mf) {
+void set_meta(jd_var *manifest, const char *root, const char *mf) {
   char hostname[256];
   jd_var *meta = jd_get_ks(manifest, "meta", 1);
   if (meta->type != HASH) jd_set_hash(meta, 10);
+  jd_set_string(jd_get_ks(meta, "root", 1), root);
   jd_set_string(jd_get_ks(meta, "manifest", 1), mf);
   if (gethostname(hostname, sizeof(hostname)))
     jd_throw("Can't get hostname: %s", strerror(errno));
   jd_set_string(jd_get_ks(meta, "host", 1), hostname);
+  jd_set_int(jd_get_ks(meta, "time", 1), (jd_int) time(NULL));
 }
 
 int main(int argc, char *argv[]) {
@@ -155,8 +151,8 @@ int main(int argc, char *argv[]) {
   log_info("destiny %s", v_info);
   for (int i = 1; i < argc; i++) {
     scope {
-      const char *dir = argv[i];
-      char *mf = manifest_name(dir);
+      char *dir = fn_rel2abs(argv[i], NULL);
+      char *mf = fn_splice(dir, MANIFEST);
       jd_var *manifest = new_manifest(jd_nv());
       jd_var *list = jd_get_ks(manifest, "object", 0);
       jd_var *prev = jd_nav(1);
@@ -168,11 +164,12 @@ int main(int argc, char *argv[]) {
         prev = jd_get_ks(prevm, "object", 0);
       }
 
+      set_meta(manifest, dir, mf);
       scan(list, prev, argv[i]);
-      set_meta(manifest, mf);
 
       log_info("Writing %s", mf);
       mf_save_file(manifest, mf);
+      free(dir);
       free(mf);
     }
   }
