@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
       const char *dir = argv[i];
       char *mf = fn_splice(dir, MANIFEST);
       jd_var *list = jd_nav(1);
-      jd_var *prev = jd_nhv(1);
+      jd_var *prev = jd_nav(1);
       struct stat st;
 
       if (!stat(mf, &st)) {
