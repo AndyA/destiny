@@ -63,6 +63,17 @@ static void get_hash_from_list(jd_var *rec, jd_var *precs) {
     get_hash(rec, jd_get_idx(precs, 0));
 }
 
+static jd_var *get_link(jd_var *out, const char *path, size_t bufsize) {
+  char buf[bufsize];
+  ssize_t len;
+  if (len = readlink(path, buf, bufsize), len == -1) {
+    if (errno == ENAMETOOLONG)
+      return get_link(out, path, bufsize * 2);
+    jd_throw("Can't read link %s: %s", path, strerror(errno));
+  }
+  return jd_set_bytes(out, buf, len);
+}
+
 static void scan(jd_var *list, jd_var *prev, const char *dir) {
   scope {
     jd_var *by_name = mf_by_key(jd_nhv(1), prev, "name");
@@ -91,30 +102,50 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
             log_error("Can't stat %s: %s", strerror(errno));
             continue;
           }
+
+          /*
+          S_ISREG(m)  is it a regular file?
+          S_ISDIR(m)  directory?
+          S_ISCHR(m)  character device?
+          S_ISBLK(m)  block device?
+          S_ISFIFO(m) FIFO (named pipe)?
+          S_ISLNK(m)  symbolic link?  (Not in POSIX.1-1996.)
+          S_ISSOCK(m) socket?  (Not in POSIX.1-1996.)
+          */
+
           if (S_ISDIR(st.st_mode)) {
             jd_assign(jd_unshift(subs, 1), name);
           }
           else {
             jd_var *rec = mk_file_rec(jd_push(list, 1), &st);
 
-            /* Already got one? */
-            get_hash_from_list(rec, jd_get_key(by_name, rname, 0));
+            if (S_ISREG(st.st_mode)) {
+              /* Already got one? */
+              get_hash_from_list(rec, jd_get_key(by_name, rname, 0));
 
-            if (!jd_get_ks(rec, "hash", 0)) {
-              jd_var *dev = jd_get_key(by_ino, jd_get_ks(rec, "dev", 0), 0);
-              if (dev)
-                get_hash_from_list(rec, jd_get_key(dev, jd_get_ks(rec, "ino", 0), 0));
+              if (!jd_get_ks(rec, "hash", 0)) {
+                jd_var *dev = jd_get_key(by_ino, jd_get_ks(rec, "dev", 0), 0);
+                if (dev)
+                  get_hash_from_list(rec, jd_get_key(dev, jd_get_ks(rec, "ino", 0), 0));
+              }
+
+              if (!jd_get_ks(rec, "hash", 0)) {
+                char digest[33];
+                if (digest_file(fn, digest)) {
+                  log_error("Error computing MD5 for %V: %s", name, strerror(errno));
+                }
+                else {
+                  jd_set_string(jd_get_ks(rec, "hash", 1), digest);
+                  log_info("%s %s\n", digest, fn);
+                }
+              }
             }
-
-            if (!jd_get_ks(rec, "hash", 0)) {
-              char digest[33];
-              if (digest_file(fn, digest)) {
-                log_error("Error computing MD5 for %V: %s", name, strerror(errno));
-              }
-              else {
-                jd_set_string(jd_get_ks(rec, "hash", 1), digest);
-                log_info("%s %s\n", digest, fn);
-              }
+            else if (S_ISLNK(st.st_mode)) {
+              get_link(jd_get_ks(rec, "link", 1), fn, 1024);
+            }
+            else if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+              jd_sprintf(jd_get_ks(rec, "rdev", 1), "0x%llx",
+                         (unsigned long long) st.st_rdev);
             }
 
             jd_assign(jd_get_ks(rec, "name", 1), rname);
@@ -178,3 +209,20 @@ int main(int argc, char *argv[]) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
