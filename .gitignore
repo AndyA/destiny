@@ -42,6 +42,7 @@
 /ltmain.sh
 /missing
 /stamp-h*
+/static/
 /tags
 /test.*
 /version.h
