@@ -1,6 +1,7 @@
 /* manifest.c */
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -74,7 +75,7 @@ jd_var *mf_load_json(jd_var *out, FILE *f) {
 
 jd_var *mf_load_file(jd_var *out, const char *fn) {
   FILE *fl = fopen(fn, "r");
-  if (!fl) jd_throw("Can't read %s: %m\n", fn);
+  if (!fl) jd_throw("Can't read %s: %s\n", fn, strerror(errno));
   jd_var *v = mf_load_json(out, fl);
   fclose(fl);
   return v;
@@ -83,12 +84,12 @@ jd_var *mf_load_file(jd_var *out, const char *fn) {
 void mf_save_file(jd_var *out, const char *fn) {
   size_t sz;
   FILE *fl = fopen(fn, "w");
-  if (!fl) jd_throw("Can't write %s: %m", fn);
+  if (!fl) jd_throw("Can't write %s: %s", fn, strerror(errno));
   jd_var json = JD_INIT;
   jd_to_json(&json, out);
   const char *js = jd_bytes(&json, &sz);
   size_t done = fwrite(js, 1, sz, fl);
-  if (done != sz) jd_throw("Error writing %s: %m", fn);
+  if (done != sz) jd_throw("Error writing %s: %s", fn, strerror(errno));
   jd_release(&json);
   fclose(fl);
 }
@@ -106,5 +107,7 @@ jd_var *mf_upgrade(jd_var *out, jd_var *in) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
+
+
 
 
