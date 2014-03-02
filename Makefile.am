@@ -8,6 +8,8 @@ lib_LTLIBRARIES = libdestiny.la
 
 bin_PROGRAMS = destiny
 
+bin_SCRIPTS = scripts/destiny-diff
+
 libdestiny_la_SOURCES = \
 	digest.c digest.h \
 	filename.c filename.h \
