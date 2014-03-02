@@ -4,10 +4,15 @@ use autodie;
 use strict;
 use warnings;
 
+use Getopt::Long;
 use JSON;
 use Path::Class;
 
-binmode( STDOUT, ":utf8" );
+STDOUT->binmode(":utf8");
+
+my %O = ( zero => undef );
+
+GetOptions( '0|zero' => \$O{zero} ) or die;
 
 my ( $alien, @mf ) = map { by_hash( load_json($_) ) } @ARGV;
 
@@ -21,7 +26,9 @@ for my $mf (@mf) {
   }
 }
 
-print "$_\n" for sort map { $_->[0] } values %need;
+my $eol = $O{zero} ? "\0" : "\n";
+
+print "$_$eol" for sort map { $_->[0] } values %need;
 
 sub by_hash {
   my $mf      = shift;
