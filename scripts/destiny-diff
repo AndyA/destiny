@@ -7,33 +7,28 @@ use warnings;
 use JSON;
 use Path::Class;
 
-my ( $alien, @mf ) = map { by_hash( abs_name( load_json($_) ) ) } @ARGV;
+my ( $alien, @mf ) = map { by_hash( load_json($_) ) } @ARGV;
 
 my %need = ();
 for my $mf (@mf) {
-  for my $hash ( grep { !$alien->{$_} } keys %$mf ) {
-    push @{ $need{$hash} }, $mf->{$hash};
+  my $root = dir $mf->{meta}{root};
+  for my $hash ( grep { !$alien->{object}{$_} } keys %{ $mf->{object} } ) {
+    push @{ $need{$hash} },
+     map { file( $root, $_->{name} )->relative->stringify }
+     @{ $mf->{object}{$hash} };
   }
 }
 
-print "$_\n" for sort map { $_->[0][0]{path} } values %need;
+print "$_\n" for sort map { $_->[0] } values %need;
 
 sub by_hash {
   my $mf      = shift;
   my $by_hash = {};
+  $by_hash->{meta} = $mf->{meta};
   for my $obj ( @{ $mf->{object} } ) {
-    push @{ $by_hash->{ $obj->{hash} } }, $obj;
+    push @{ $by_hash->{object}{ $obj->{hash} } }, $obj;
   }
   return $by_hash;
-}
-
-sub abs_name {
-  my $mf   = shift;
-  my $root = dir $mf->{meta}{root};
-  for my $obj ( @{ $mf->{object} } ) {
-    $obj->{path} = file( $root, $obj->{name} )->stringify;
-  }
-  return $mf;
 }
 
 sub load_json { JSON->new->utf8->decode( scalar file(shift)->slurp ) }
