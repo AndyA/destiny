@@ -7,6 +7,8 @@ use warnings;
 use JSON;
 use Path::Class;
 
+binmode( STDOUT, ":utf8" );
+
 my ( $alien, @mf ) = map { by_hash( load_json($_) ) } @ARGV;
 
 my %need = ();
@@ -26,7 +28,7 @@ sub by_hash {
   my $by_hash = {};
   $by_hash->{meta} = $mf->{meta};
   for my $obj ( @{ $mf->{object} } ) {
-    push @{ $by_hash->{object}{ $obj->{hash} } }, $obj;
+    push @{ $by_hash->{object}{ $obj->{hash} } }, $obj if $obj->{hash};
   }
   return $by_hash;
 }
