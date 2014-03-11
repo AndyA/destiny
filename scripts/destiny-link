@@ -1,0 +1,62 @@
+#!/usr/bin/env perl
+
+use autodie;
+use strict;
+use warnings;
+
+use Getopt::Long;
+use JSON;
+use Path::Class;
+
+STDOUT->binmode(":utf8");
+
+my %O = ( dryrun => undef );
+
+GetOptions( 'dryrun' => \$O{dryrun} ) or die;
+
+my %by_hash = ();
+
+for my $mf ( map { load_json($_) } @ARGV ) {
+  my $root = dir $mf->{meta}{root};
+  for my $obj ( @{ $mf->{object} } ) {
+    $obj->{path} = file( $root, $obj->{name} )->stringify;
+    push @{ $by_hash{ $obj->{dev} }{ $obj->{hash} }{ $obj->{ino} } }, $obj
+     if exists $obj->{hash};
+  }
+}
+
+my $saved = 0;
+for my $dev ( keys %by_hash ) {
+  for my $hash ( keys %{ $by_hash{$dev} } ) {
+    my ( $proto, @alias ) = map { $by_hash{$dev}{$hash}{$_} } sort {
+      scalar @{ $by_hash{$dev}{$hash}{$b} } <=>
+       scalar @{ $by_hash{$dev}{$hash}{$a} }
+    } keys %{ $by_hash{$dev}{$hash} };
+    if (@alias) {
+      my $pn = $proto->[0]{path};
+      for my $dest ( map { @$_ } @alias ) {
+        print "$pn -> $dest->{path} ($dest->{size})\n";
+        $saved += $dest->{size};
+        mk_link( $pn, $dest->{path} ) unless $O{dryrun};
+      }
+    }
+  }
+}
+
+print "Saved $saved bytes\n";
+
+sub mk_link {
+  my ( $src, $dst ) = @_;
+  my $suf = 'AAAAA';
+  my $tmp = "$dst.$suf";
+  while ( -e $tmp ) {
+    $suf++;
+    $tmp = "$dst.$suf";
+  }
+  link $src, $tmp;
+  rename $tmp, $dst;
+}
+
+sub load_json { JSON->new->utf8->decode( scalar file(shift)->slurp ) }
+
+# vim:ts=2:sw=2:sts=2:et:ft=perl
