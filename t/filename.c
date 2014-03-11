@@ -52,6 +52,7 @@ OK2(rel2abs_file, const char *a1, const char *a2, "%s, %s");
 OK2(abs2rel, const char *a1, const char *a2, "%s, %s");
 OK2(abs2rel_file, const char *a1, const char *a2, "%s, %s");
 OK2(splice, const char *a1, const char *a2, "%s, %s");
+OK2(temp, const char *a1, const char *a2, "%s, %s");
 
 static int tidy_nop_ok(const char *inout) {
   return tidy_ok(inout, inout, "tidy is nop");
@@ -141,12 +142,27 @@ static void test_005(void) {
   splice_ok("foo/", "bar", "foo/bar", "slash");
 }
 
+static void test_006(void) {
+  temp_ok("x", NULL, ".x.tmp", "simple");
+  temp_ok("/y/z/x", NULL, "/y/z/.x.tmp", "simple w/ path");
+  temp_ok("x.json", NULL, ".x.tmp.json", "extension");
+  temp_ok("/y/z/x.json", NULL, "/y/z/.x.tmp.json", "extension w/ path");
+  temp_ok("x.bak/foo", NULL, "x.bak/.foo.tmp", "dot in path");
+  temp_ok("x", ".abc123", ".x.abc123", "simple");
+  temp_ok("/y/z/x", ".abc123", "/y/z/.x.abc123", "simple w/ path");
+  temp_ok("x.json", ".abc123", ".x.abc123.json", "extension");
+  temp_ok("/y/z/x.json", ".abc123", "/y/z/.x.abc123.json", "extension w/ path");
+  temp_ok("x.bak/foo", ".abc123", "x.bak/.foo.abc123", "dot in path");
+}
+
+
 int main(void) {
   test_001();
   test_002();
   test_003();
   test_004();
   test_005();
+  test_006();
   done_testing();
 }
 

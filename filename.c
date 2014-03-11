@@ -244,7 +244,27 @@ char *fn_abs2rel_file(const char *abs, const char *base_file) {
   return rel;
 }
 
+char *fn_temp(const char *name, const char *cookie) {
+  if (cookie == NULL) cookie = ".tmp";
+  size_t clen = strlen(cookie);
+  size_t len = strlen(name);
+  char *tmp = malloc(len + 5 + 1);
+  char *tp = tmp;
+  const char *dot = strrchr(name, '.');
+  const char *slash = strrchr(name, '/');
+  if (!slash) slash = name - 1;
+  slash++;
+  if (!dot || dot < slash) dot = name + len;
+  memcpy(tp, name, slash - name);
+  tp += slash - name;
+  *tp++ = '.';
+  memcpy(tp, slash, dot - slash);
+  tp += dot - slash;
+  memcpy(tp, cookie, clen);
+  tp += clen;
+  memcpy(tp, dot, name + len - dot + 1);
+  return tmp;
+}
+
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
-
-

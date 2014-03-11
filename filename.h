@@ -12,6 +12,7 @@ char *fn_rel2abs_file(const char *rel, const char *base_file);
 char *fn_abs2rel(const char *abs, const char *base);
 char *fn_abs2rel_file(const char *abs, const char *base_file);
 char *fn_splice(const char *path, const char *basename);
+char *fn_temp(const char *name, const char *cookie);
 
 #endif
 
