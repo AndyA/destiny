@@ -165,7 +165,7 @@ static jd_var *new_manifest(jd_var *out) {
   return out;
 }
 
-void set_meta(jd_var *manifest, const char *root, const char *mf) {
+static void set_meta(jd_var *manifest, const char *root, const char *mf) {
   char hostname[256];
   jd_var *meta = jd_get_ks(manifest, "meta", 1);
   if (meta->type != HASH) jd_set_hash(meta, 10);
