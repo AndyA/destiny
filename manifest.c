@@ -117,7 +117,3 @@ jd_var *mf_upgrade(jd_var *out, jd_var *in) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
-
-
-
-
