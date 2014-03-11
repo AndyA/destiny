@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {
       scan(list, prev, argv[i]);
 
       log_info("Writing %s", mf);
-      mf_save_file(manifest, mf);
+      mf_save_file_atomic(manifest, mf);
       free(dir);
       free(mf);
     }

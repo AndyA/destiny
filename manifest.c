@@ -3,8 +3,10 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
+#include "filename.h"
 #include "manifest.h"
 
 static jd_var *mk_array(jd_var *hash, jd_var *key) {
@@ -92,6 +94,14 @@ void mf_save_file(jd_var *out, const char *fn) {
   if (done != sz) jd_throw("Error writing %s: %s", fn, strerror(errno));
   jd_release(&json);
   fclose(fl);
+}
+
+void mf_save_file_atomic(jd_var *out, const char *fn) {
+  char *tmp = fn_temp(fn, NULL);
+  mf_save_file(out, tmp);
+  if (rename(tmp, fn))
+    jd_throw("Can't rename %s as %s: %s\n", tmp, fn, strerror(errno));
+  free(tmp);
 }
 
 jd_var *mf_upgrade(jd_var *out, jd_var *in) {
