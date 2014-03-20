@@ -1,0 +1,79 @@
+#!/usr/bin/env perl
+
+use autodie;
+use strict;
+use warnings;
+
+use Data::Dumper;
+use Getopt::Long;
+use JSON;
+use Path::Class;
+use Sys::Hostname;
+
+STDOUT->binmode(':utf8');
+
+my $out = shift @ARGV;
+my @mf = map { load_json($_) } @ARGV;
+
+my $paths = {};
+
+for my $mf (@mf) {
+  my $lroot = dir $mf->{meta}{root};
+  for my $obj ( @{ $mf->{object} } ) {
+    my $path = file( $lroot, $obj->{name} );
+    $obj->{path} = $path;
+    my @comp = $path->components;
+    mark( $paths, @comp );
+  }
+}
+
+my $root = dir find_common($paths);
+
+my $manifest = {
+  meta => {
+    host     => hostname,
+    manifest => file($out)->absolute->stringify,
+    root     => $root->stringify,
+    time     => time
+  },
+  object => [] };
+
+for my $mf (@mf) {
+  for my $obj ( @{ $mf->{object} } ) {
+    $obj->{name} = $obj->{path}->relative($root)->stringify;
+    delete $obj->{path};
+    push @{ $manifest->{object} }, $obj;
+  }
+}
+
+{
+  my $of = file($out)->openw;
+  $of->binmode(':utf8');
+  print $of JSON->new->canonical->utf8->encode($manifest);
+}
+
+sub find_common {
+  my $hash = shift;
+  my @path = ();
+  while ( ref $hash && 'HASH' eq ref $hash ) {
+    my @k = keys %$hash;
+    last if @k != 1;
+    $hash = $hash->{ $k[0] };
+    push @path, $k[0];
+  }
+  return @path;
+}
+
+sub mark {
+  my ( $hash, $key, @path ) = @_;
+  if (@path) {
+    mark( $hash->{$key} ||= {}, @path );
+    return;
+  }
+  $hash->{$key}++;
+}
+
+sub load_json { JSON->new->utf8->decode( scalar file(shift)->slurp ) }
+
+# vim:ts=2:sw=2:sts=2:et:ft=perl
+
