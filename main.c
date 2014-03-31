@@ -1,6 +1,7 @@
 /* main.c */
 
 #include <errno.h>
+#include <getopt.h>
 #include <jd_pretty.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,9 +18,61 @@
 #include "md5.h"
 #include "utils.h"
 
+#define PROG "destiny"
 #define MANIFEST "MANIFEST.json"
 
 #define MODE_BITS (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | S_IRUSR | S_IWUSR | S_IXUSR)
+
+static void usage() {
+  fprintf(stderr, "Usage: " PROG " [options] <dir>...\n\n"
+          "Options:\n"
+          "  -h, --help                See this message\n"
+          "  -q, --quiet               Be quiet\n"
+          "      --set meta=value      Set additional meta field\n"
+          "\n" PROG " %s\n", v_info);
+  exit(1);
+}
+
+static void parse_set(jd_var *ctx, const char *arg) {
+  char *sp = strchr(arg, '=');
+  if (!sp) jd_throw("Expected --set name=var");
+  scope {
+    jd_assign(jd_get_key(ctx, jd_set_bytes(jd_nv(), arg, sp - arg), 1), jd_nsv(sp + 1));
+  }
+}
+
+static void parse_options(jd_var *ctx, int *argc, char ***argv) {
+  int ch, oidx;
+
+  static struct option opts[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"quiet", no_argument, NULL, 'q'},
+    {"set", required_argument, NULL, 1},
+    {NULL, 0, NULL, 0}
+  };
+
+  while (ch = getopt_long(*argc, *argv, "qh", opts, &oidx), ch != -1) {
+    switch (ch) {
+    case 1:
+      parse_set(ctx, optarg);
+      break;
+    case 'h':
+    default:
+      usage();
+      break;
+    case 'q':
+      log_level = WARNING;
+      break;
+    }
+  }
+
+  *argc -= optind;
+  *argv += optind;
+
+  if (*argc == 0) {
+    usage();
+  }
+}
 
 static jd_var *mk_file_rec(jd_var *out, const struct stat *st) {
   jd_set_hash(out, 10);
@@ -165,10 +218,11 @@ static jd_var *new_manifest(jd_var *out) {
   return out;
 }
 
-static void set_meta(jd_var *manifest, const char *root, const char *mf) {
+static void set_meta(jd_var *manifest, jd_var *def, const char *root, const char *mf) {
   char hostname[256];
   jd_var *meta = jd_get_ks(manifest, "meta", 1);
   if (meta->type != HASH) jd_set_hash(meta, 10);
+  if (def) jd_merge(meta, def, 0);
   jd_set_string(jd_get_ks(meta, "root", 1), root);
   jd_set_string(jd_get_ks(meta, "manifest", 1), mf);
   if (gethostname(hostname, sizeof(hostname)))
@@ -179,29 +233,36 @@ static void set_meta(jd_var *manifest, const char *root, const char *mf) {
 
 int main(int argc, char *argv[]) {
   jd_require("0.05");
-  log_info("destiny %s", v_info);
-  for (int i = 1; i < argc; i++) {
-    scope {
-      char *dir = fn_rel2abs(argv[i], NULL);
-      char *mf = fn_splice(dir, MANIFEST);
-      jd_var *manifest = new_manifest(jd_nv());
-      jd_var *list = jd_get_ks(manifest, "object", 0);
-      jd_var *prev = jd_nav(1);
-      struct stat st;
+  scope {
+    jd_var *ctx = jd_nhv(10);
+    parse_options(ctx, &argc, &argv);
+    log_info("%s %s", PROG, v_info);
+    for (int i = 0; i < argc; i++) {
+      scope {
+        char *dir = fn_rel2abs(argv[i], NULL);
+        char *mf = fn_splice(dir, MANIFEST);
+        jd_var *manifest = new_manifest(jd_nv());
+        jd_var *list = jd_get_ks(manifest, "object", 0);
+        jd_var *prev = jd_nav(1);
+        struct stat st;
+        jd_var *lctx = ctx;
 
-      if (!stat(mf, &st)) {
-        log_info("Reading %s", mf);
-        jd_var *prevm = mf_upgrade(jd_nv(), mf_load_file(jd_nv(), mf));
-        prev = jd_get_ks(prevm, "object", 0);
+        if (!stat(mf, &st)) {
+          log_info("Reading %s", mf);
+          jd_var *prevm = mf_upgrade(jd_nv(), mf_load_file(jd_nv(), mf));
+          prev = jd_get_ks(prevm, "object", 0);
+          lctx = jd_clone(jd_nv(), ctx, 0);
+          jd_merge(lctx, jd_get_ks(prevm, "meta", 0), 0);
+        }
+
+        set_meta(manifest, lctx, dir, mf);
+        scan(list, prev, argv[i]);
+
+        log_info("Writing %s", mf);
+        mf_save_file_atomic(manifest, mf);
+        free(dir);
+        free(mf);
       }
-
-      set_meta(manifest, dir, mf);
-      scan(list, prev, argv[i]);
-
-      log_info("Writing %s", mf);
-      mf_save_file_atomic(manifest, mf);
-      free(dir);
-      free(mf);
     }
   }
   return 0;
