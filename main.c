@@ -240,13 +240,22 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < argc; i++) {
       scope {
         char *dir = fn_rel2abs(argv[i], NULL);
+        char *bn = fn_basename(dir);
+        if (!strcmp(bn, MANIFEST)) {
+          char *t = fn_dirname(dir);
+          free(dir);
+          dir = t;
+        }
+        free(bn);
+
         char *mf = fn_splice(dir, MANIFEST);
+
         jd_var *manifest = new_manifest(jd_nv());
         jd_var *list = jd_get_ks(manifest, "object", 0);
         jd_var *prev = jd_nav(1);
-        struct stat st;
         jd_var *lctx = ctx;
 
+        struct stat st;
         if (!stat(mf, &st)) {
           log_info("Reading %s", mf);
           jd_var *prevm = mf_upgrade(jd_nv(), mf_load_file(jd_nv(), mf));
@@ -256,7 +265,7 @@ int main(int argc, char *argv[]) {
         }
 
         set_meta(manifest, lctx, dir, mf);
-        scan(list, prev, argv[i]);
+        scan(list, prev, dir);
 
         log_info("Writing %s", mf);
         mf_save_file_atomic(manifest, mf);
