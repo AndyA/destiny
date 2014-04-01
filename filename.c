@@ -96,6 +96,15 @@ char *fn_tidy(const char *name) {
   return fn;
 }
 
+char *fn_basename(const char *file) {
+  char *fn, *dn;
+  if ((fn = _my_strdup(file), !fn)
+      || (dn = _my_strdup(basename(fn)), !dn))
+    return NULL;
+  free(fn);
+  return dn;
+}
+
 char *fn_dirname(const char *file) {
   char *fn, *dn;
   if ((fn = _my_strdup(file), !fn)
