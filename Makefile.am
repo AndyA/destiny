@@ -8,7 +8,11 @@ lib_LTLIBRARIES = libdestiny.la
 
 bin_PROGRAMS = destiny
 
-bin_SCRIPTS = scripts/destiny-diff scripts/destiny-link scripts/destiny-merge
+bin_SCRIPTS = \
+	scripts/destiny-diff \
+	scripts/destiny-link \
+	scripts/destiny-merge \
+	scripts/destiny-conform
 
 libdestiny_la_SOURCES = \
 	digest.c digest.h \

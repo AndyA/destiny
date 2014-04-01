@@ -1,0 +1,102 @@
+#!/usr/bin/env perl
+
+use autodie;
+use strict;
+use warnings;
+
+use Data::Dumper;
+use File::Copy;
+use Getopt::Long;
+use JSON;
+use Path::Class;
+use Sys::Hostname;
+
+my %O = (
+  allow_missing => 0,
+  link_only     => 0,
+);
+
+STDOUT->binmode(':utf8');
+
+GetOptions(
+  'M|allow-missing' => \$O{allow_missing},
+  'L|link-only'     => \$O{link_only},
+) or die usage();
+
+my $tf = $ARGV[0];
+my ( $target, @mf ) = map { load_json($_) } @ARGV;
+
+# Build index by MD5, dev
+
+my %by_hash_dev = ();
+for my $mf (@mf) {
+  my $lroot = dir $mf->{meta}{root};
+  for my $obj ( @{ $mf->{object} } ) {
+    next unless exists $obj->{hash} && exists $obj->{dev};
+    my $path = file( $lroot, $obj->{name} );
+    push @{ $by_hash_dev{ $obj->{hash} }{ $obj->{dev} } },
+     { %$obj, path => "$path" };
+  }
+}
+
+my %missing = ();
+for my $obj ( @{ $target->{object} } ) {
+  next unless exists $obj->{hash};
+  next if exists $by_hash_dev{ $obj->{hash} };
+  push @{ $missing{ $obj->{hash} } }, $obj;
+}
+
+if ( keys %missing ) {
+  print "Missing files:\n";
+  printf "  %s %s\n", $_->{hash}, $_->{name}
+   for sort { $a->{name} cmp $b->{name} } map { @$_ } values %missing;
+  die "Stopping\n" unless $O{allow_missing};
+}
+
+my $base = file($tf)->parent;
+for my $obj ( @{ $target->{object} } ) {
+  if ( exists $obj->{hash} ) {
+    next unless exists $by_hash_dev{ $obj->{hash} };
+    my $path = file $base, $obj->{name};
+    my $dir = $path->parent;
+    $dir->mkpath;
+    my $dev = sprintf "0x%x", ( stat $dir )[0];
+    if ( my $cand = $by_hash_dev{ $obj->{hash} }{$dev} ) {
+      my $src = (
+        map { $_->[2] }
+         sort { $a->[0] <=> $b->[0] || $a->[1] <=> $b->[1] }
+         map {
+          [ $_->{mode} eq $obj->{mode} ? 0 : 1,
+            abs( $_->{mtime} - $obj->{mtime} ),
+            $_
+          ]
+         } @$cand
+      )[0];
+      print "Linking $src->{path} to $path\n";
+      link $src->{path}, $path;
+    }
+    else {
+      my $src = ( values %{ $by_hash_dev{ $obj->{hash} } } )[0][0];
+      print "Copying $src->{path} to $path\n";
+      copy( $src->{path}, $path );
+    }
+  }
+  else {
+    # non-file
+  }
+}
+
+sub load_json { JSON->new->utf8->decode( scalar file(shift)->slurp ) }
+
+sub usage {
+  return <<EOT
+Usage: destiny-conform [options] <dest> <src> ...
+
+Options:
+  -M, --allow-missing   Continue if some files can't be found
+  -L, --link-only       Only continue if hard links can be used
+
+EOT
+}
+
+# vim:ts=2:sw=2:sts=2:et:ft=perl
