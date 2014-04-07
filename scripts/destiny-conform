@@ -14,6 +14,7 @@ use Sys::Hostname;
 my %O = (
   allow_missing => 0,
   link_only     => 0,
+  set_mtime     => 0,
 );
 
 STDOUT->binmode(':utf8');
@@ -21,6 +22,7 @@ STDOUT->binmode(':utf8');
 GetOptions(
   'M|allow-missing' => \$O{allow_missing},
   'L|link-only'     => \$O{link_only},
+  'm|set-mtime'     => \$O{set_mtime},
 ) or die usage();
 
 my $tf = $ARGV[0];
@@ -80,6 +82,9 @@ for my $obj ( @{ $target->{object} } ) {
       print "Copying $src->{path} to $path\n";
       copy( $src->{path}, $path );
     }
+    if ( $O{set_mtime} && exists $obj->{mtime} ) {
+      utime time, $obj->{mtime}, $path;
+    }
   }
   else {
     # non-file
@@ -95,6 +100,7 @@ Usage: destiny-conform [options] <dest> <src> ...
 Options:
   -M, --allow-missing   Continue if some files can't be found
   -L, --link-only       Only continue if hard links can be used
+  -M, --set-mtime       Set the mtime of the copied or linked file
 
 EOT
 }
