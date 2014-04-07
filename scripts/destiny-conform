@@ -100,7 +100,7 @@ Usage: destiny-conform [options] <dest> <src> ...
 Options:
   -M, --allow-missing   Continue if some files can't be found
   -L, --link-only       Only continue if hard links can be used
-  -M, --set-mtime       Set the mtime of the copied or linked file
+  -m, --set-mtime       Set the mtime of the copied or linked file
 
 EOT
 }
