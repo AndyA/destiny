@@ -1,5 +1,7 @@
 /* main.c */
 
+#include "config.h"
+
 #include <errno.h>
 #include <getopt.h>
 #include <jd_pretty.h>
@@ -7,8 +9,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#endif
+
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
 
 #include "digest.h"
 #include "filename.h"
@@ -17,6 +28,10 @@
 #include "manifest.h"
 #include "md5.h"
 #include "utils.h"
+
+#if defined(HAVE_ATTR_XATTR_H) || defined(HAVE_SYS_XATTR_H)
+#define USE_XATTR 1
+#endif
 
 #define PROG "destiny"
 #define MANIFEST "MANIFEST.json"
@@ -127,6 +142,32 @@ static jd_var *get_link(jd_var *out, const char *path, size_t bufsize) {
   return jd_set_bytes(out, buf, len);
 }
 
+#ifdef USE_XATTR
+static void mk_xattr(jd_var *rec, const char *name) {
+  ssize_t sz = listxattr(name, (char *) name, 0, 0);
+  if (sz == 0) return;
+  if (sz > 0) {
+    char buf[sz];
+    sz = listxattr(name, buf, sz, 0);
+    if (sz < 0) goto fail;
+    jd_var *xat = jd_set_hash(jd_get_ks(rec, "xattr", 1), 10);
+    for (char *bp = buf; bp < buf + sz; bp += strlen(bp) + 1) {
+      ssize_t vsz = getxattr(name, bp, bp, 0, 0, 0);
+      log_debug("Reading %s (%ld)", bp, (long) vsz);
+      if (vsz < 0) continue;
+      char vbuf[vsz];
+      vsz = getxattr(name, bp, vbuf, vsz, 0, 0);
+      if (vsz < 0) goto fail;
+      jd_set_bytes(jd_get_ks(xat, bp, 1), vbuf, vsz);
+    }
+  }
+  return;
+
+fail:
+  log_error("Can't read xattr for %s: %s", name, strerror(errno));
+}
+#endif
+
 static void scan(jd_var *list, jd_var *prev, const char *dir) {
   scope {
     jd_var *by_name = mf_by_key(jd_nhv(1), prev, "name");
@@ -171,6 +212,9 @@ static void scan(jd_var *list, jd_var *prev, const char *dir) {
           }
           else {
             jd_var *rec = mk_file_rec(jd_push(list, 1), &st);
+#if USE_XATTR
+            mk_xattr(rec, fn);
+#endif
 
             if (S_ISREG(st.st_mode)) {
               /* Already got one? */
@@ -279,3 +323,25 @@ int main(int argc, char *argv[]) {
 
 /* vim:ts=2:sw=2:sts=2:et:ft=c
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
