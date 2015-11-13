@@ -101,8 +101,13 @@ static int unchanged(jd_var *ra, jd_var *rb) {
 
 static jd_var *relname(jd_var *out, jd_var *path, const char *dir) {
   char *rel = fn_abs2rel(jd_bytes(path, NULL), dir);
-  jd_set_string(out, rel);
+  size_t len = strlen(rel);
+  uint32_t buf[len + 1];
+  for (unsigned i = 0; i < len; i++)
+    buf[i] = rel[i];
   free(rel);
+  jd_set_string(out, "");
+  jd_utf8_append(out, buf, len);
   return out;
 }
 
