@@ -19,7 +19,7 @@ const argv = yargs
       });
     },
     async argv => {
-      if (argv.n) throw new Error(`Can't dry run update`);
+      if (argv.n) return console.error(`Can't dry run update`);
       for (const dir of argv.dirs) {
         const d = new Destiny({ dir });
         await d.update();
