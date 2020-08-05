@@ -2,13 +2,24 @@
 "use strict";
 
 const { Destiny } = require("../lib");
+const yargs = require("yargs");
 
-(async () => {
-  try {
-    const d = new Destiny({ dir: "node_modules" });
-    await d.update();
-  } catch (e) {
-    console.error(e);
-    process.exit(1);
-  }
-})();
+const argv = yargs
+  .command(
+    "update [dirs...]",
+    "Update manifest",
+    yargs => {
+      yargs.positional("dirs", {
+        describe: "Directories to scan",
+        type: "string",
+        default: "."
+      });
+    },
+    async argv => {
+      for (const dir of argv.dirs) {
+        const d = new Destiny({ dir });
+        await d.update();
+      }
+    }
+  )
+  .demandCommand().argv;
