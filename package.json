@@ -2,9 +2,9 @@
   "name": "destiny",
   "version": "0.0.1",
   "description": "Well, here's the thing...",
-  "main": "index.js",
+  "main": "lib/index.js",
   "bin": {
-    "destiny": "destiny.js"
+    "destiny": "bin/destiny.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
