@@ -7,6 +7,7 @@ const { Destiny } = require("../lib");
 module.exports = {
   command: "link [dirs...]",
   describe: "Link duplicate files",
+
   builder: yargs => {
     yargs.positional("dirs", {
       describe: "Directories to visit",
@@ -14,6 +15,7 @@ module.exports = {
       default: "."
     });
   },
+
   handler: async argv => {
     for (const dir of argv.dirs) {
       const d = new Destiny({ dir });
