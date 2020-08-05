@@ -1,0 +1,31 @@
+{
+  "name": "destiny",
+  "version": "0.0.1",
+  "description": "Well, here's the thing...",
+  "main": "index.js",
+  "bin": {
+    "destiny": "destiny.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndyA/destiny.git"
+  },
+  "keywords": [
+    "hash",
+    "dedup",
+    "duplicate",
+    "files"
+  ],
+  "author": "Andy Armstrong <andy@hexten.net>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AndyA/destiny/issues"
+  },
+  "homepage": "https://github.com/AndyA/destiny#readme",
+  "dependencies": {
+    "lodash": "^4.17.19"
+  }
+}
