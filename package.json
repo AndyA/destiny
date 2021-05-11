@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/AndyA/destiny#readme",
   "dependencies": {
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.21",
     "yargs": "^15.4.1"
   }
 }
