@@ -1,0 +1,13 @@
+.{
+    .name = .destiny,
+    .version = "0.0.0",
+    .fingerprint = 0x7522fbab395169ef,
+    .minimum_zig_version = "0.18.0-dev.1165+ce87507d5",
+    .zig_version = "0.18.0-dev.1165+ce87507d5",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
