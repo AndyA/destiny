@@ -3,12 +3,12 @@ const assert = std.debug.assert;
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 
-pub const InternedStrings = struct {
+pub const Interned = struct {
     const Self = @This();
 
     text: std.ArrayList(u8) = .empty,
     index: std.ArrayList(u32) = .empty,
-    lookup: std.StringHashMapUnmanaged(u32) = .empty,
+    seen: std.hash_map.HashMapUnmanaged(u32, void, Self, 80) = .empty,
     allocator: Allocator,
 
     pub fn init(gpa: Allocator) Allocator.Error!Self {
@@ -20,18 +20,36 @@ pub const InternedStrings = struct {
     pub fn deinit(self: *Self) void {
         self.text.deinit(self.allocator);
         self.index.deinit(self.allocator);
-        self.lookup.deinit(self.allocator);
+        self.seen.deinit(self.allocator);
+    }
+
+    pub fn hash(self: *const Self, value: u32) u64 {
+        return std.hash.Wyhash.hash(0, self.get(value));
+    }
+
+    pub fn eql(self: *const Self, a: u32, b: u32) bool {
+        return std.mem.eql(u8, self.get(a), self.get(b));
     }
 
     pub fn intern(self: *Self, str: []const u8) Allocator.Error!u32 {
-        const slot = try self.lookup.getOrPut(self.allocator, str);
-        if (slot.found_existing)
-            return slot.value_ptr.*;
+        const text_limit = self.text.items.len;
+        const index_limit = self.index.items.len;
+        errdefer {
+            self.text.items.len = text_limit;
+            self.index.items.len = index_limit;
+        }
+
         try self.text.appendSlice(self.allocator, str);
-        const id: u32 = @intCast(self.index.items.len);
+        const id: u32 = @intCast(index_limit);
         try self.index.append(self.allocator, @intCast(self.text.items.len));
-        slot.value_ptr.* = id;
-        return id;
+
+        const slot = try self.seen.getOrPutContext(self.allocator, id, self.*);
+        if (slot.found_existing) {
+            self.text.items.len = text_limit;
+            self.index.items.len = index_limit;
+        }
+
+        return slot.key_ptr.*;
     }
 
     pub fn get(self: *const Self, id: u32) []const u8 {
@@ -41,8 +59,8 @@ pub const InternedStrings = struct {
     }
 };
 
-test InternedStrings {
-    var int: InternedStrings = try .init(std.testing.allocator);
+test Interned {
+    var int: Interned = try .init(std.testing.allocator);
     defer int.deinit();
 
     const one = try int.intern("one");
