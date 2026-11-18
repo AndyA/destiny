@@ -23,10 +23,10 @@ pub fn index(self: *PathIndexer, pathname: []const u8) Allocator.Error!u32 {
     var iter = std.mem.splitScalar(u8, pathname, '/');
     var current = Pathnames.ROOT;
     var pos: usize = 0;
-    const items = &self.path_nodes.items;
 
     // Skip over common prefix
     while (iter.next()) |name| : (pos += 1) {
+        const items = &self.path_nodes.items;
         if (pos < items.len) {
             const other = self.pathnames.getElementName(items.*[pos]);
             // Re-use common prefix
