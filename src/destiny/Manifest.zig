@@ -70,11 +70,11 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             self.next_handle.deinit(allocator);
         }
 
-        pub fn add(self: *Self, gpa: Allocator, key: K) AppendError!void {
-            const slot = try self.index.getOrPutContext(gpa, key, .{});
+        pub fn add(self: *Self, allocator: Allocator, key: K) AppendError!void {
+            const slot = try self.index.getOrPutContext(allocator, key, .{});
             const link = if (slot.found_existing) slot.value_ptr.* else LAST_HANDLE;
             slot.value_ptr.* = @intCast(self.next_handle.items.len);
-            try self.next_handle.append(gpa, link);
+            try self.next_handle.append(allocator, link);
         }
 
         pub fn size(self: *const Self) usize {
@@ -108,8 +108,8 @@ const PathIndex = struct {
         self.index.deinit(allocator);
     }
 
-    pub fn add(self: *Self, gpa: Allocator, key: u32) AppendError!void {
-        const slot = try self.index.getOrPutContext(gpa, key, .{});
+    pub fn add(self: *Self, allocator: Allocator, key: u32) AppendError!void {
+        const slot = try self.index.getOrPutContext(allocator, key, .{});
         if (slot.found_existing)
             return error.DuplicatePath;
         slot.value_ptr.* = @intCast(self.used);
