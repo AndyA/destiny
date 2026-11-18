@@ -72,9 +72,9 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
 
         pub fn add(self: *Self, allocator: Allocator, key: K) AppendError!void {
             const slot = try self.index.getOrPutContext(allocator, key, .{});
-            const link = if (slot.found_existing) slot.value_ptr.* else LAST_HANDLE;
+            const head_handle = if (slot.found_existing) slot.value_ptr.* else LAST_HANDLE;
             slot.value_ptr.* = @intCast(self.next_handle.items.len);
-            try self.next_handle.append(allocator, link);
+            try self.next_handle.append(allocator, head_handle);
         }
 
         pub fn size(self: *const Self) usize {
