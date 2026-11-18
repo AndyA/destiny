@@ -12,15 +12,7 @@ const PathIndexer = @import("PathIndexer.zig");
 pub const LAST_HANDLE = std.math.maxInt(u32);
 pub const AppendError = Allocator.Error || error{DuplicatePath};
 
-pub const Object = struct {
-    path: u32,
-    inode: Io.File.INode,
-    size: u64,
-    permissions: Io.File.Permissions,
-    kind: Io.File.Kind,
-    mtime: Io.Timestamp,
-    hash: u256,
-};
+pub const Object = @import("Object.zig");
 
 fn IntContext(comptime T: type) type {
     return struct {
@@ -129,97 +121,95 @@ const PathIndex = struct {
     }
 };
 
-pub const Manifest = struct {
-    const Self = @This();
+const Manifest = @This();
 
-    pub const INodeIndex = MultiIndex(Io.File.INode, IntContext(Io.File.INode));
-    pub const HashIndex = MultiIndex(u256, HashContext);
+pub const INodeIndex = MultiIndex(Io.File.INode, IntContext(Io.File.INode));
+pub const HashIndex = MultiIndex(u256, HashContext);
 
-    allocator: Allocator,
-    pathnames: *Pathnames,
+allocator: Allocator,
+pathnames: *Pathnames,
 
-    objects: std.ArrayList(Object) = .empty,
+objects: std.ArrayList(Object) = .empty,
 
-    path_index: PathIndex = .empty,
-    inode_index: INodeIndex = .empty,
-    hash_index: HashIndex = .empty,
+path_index: PathIndex = .empty,
+inode_index: INodeIndex = .empty,
+hash_index: HashIndex = .empty,
 
-    pub fn init(allocator: Allocator, pathnames: *Pathnames) Self {
-        return .{ .allocator = allocator, .pathnames = pathnames };
+pub fn init(allocator: Allocator, pathnames: *Pathnames) Manifest {
+    return .{ .allocator = allocator, .pathnames = pathnames };
+}
+
+pub fn deinit(self: *Manifest) void {
+    self.objects.deinit(self.allocator);
+
+    self.path_index.deinit(self.allocator);
+    self.inode_index.deinit(self.allocator);
+    self.hash_index.deinit(self.allocator);
+}
+
+pub fn append(self: *Manifest, object: Object) AppendError!void {
+    const handle: u32 = @intCast(self.objects.items.len);
+    assert(handle != LAST_HANDLE);
+    try self.objects.append(self.allocator, object);
+}
+
+fn updateIndex(
+    self: *Manifest,
+    comptime index_field: []const u8,
+    comptime object_field: []const u8,
+) AppendError!*const @TypeOf(@field(self, index_field)) {
+    const index = &@field(self, index_field);
+    const start = index.size();
+    const end = self.objects.items.len;
+
+    for (self.objects.items[start..end]) |object| {
+        try index.add(self.allocator, @field(object, object_field));
     }
 
-    pub fn deinit(self: *Self) void {
-        self.objects.deinit(self.allocator);
+    return index;
+}
 
-        self.path_index.deinit(self.allocator);
-        self.inode_index.deinit(self.allocator);
-        self.hash_index.deinit(self.allocator);
-    }
+pub fn pathIndex(self: *Manifest) AppendError!*const PathIndex {
+    return self.updateIndex("path_index", "path");
+}
 
-    pub fn append(self: *Self, object: Object) AppendError!void {
-        const handle: u32 = @intCast(self.objects.items.len);
-        assert(handle != LAST_HANDLE);
-        try self.objects.append(self.allocator, object);
-    }
+pub fn iNodeIndex(self: *Manifest) AppendError!*const INodeIndex {
+    return self.updateIndex("inode_index", "inode");
+}
 
-    fn updateIndex(
-        self: *Self,
-        comptime index_field: []const u8,
-        comptime object_field: []const u8,
-    ) AppendError!*const @TypeOf(@field(self, index_field)) {
-        const index = &@field(self, index_field);
-        const start = index.size();
-        const end = self.objects.items.len;
+pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
+    return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
+}
 
-        for (self.objects.items[start..end]) |object| {
-            try index.add(self.allocator, @field(object, object_field));
-        }
+pub fn hashIndex(self: *Manifest) AppendError!*const HashIndex {
+    return self.updateIndex("hash_index", "hash");
+}
 
-        return index;
-    }
+pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
+    return (try self.hashIndex()).iterForKey(self.objects.items, hash);
+}
 
-    pub fn pathIndex(self: *Self) AppendError!*const PathIndex {
-        return self.updateIndex("path_index", "path");
-    }
+pub fn get(self: *const Manifest, handle: u32) Object {
+    return self.objects.items[handle];
+}
 
-    pub fn iNodeIndex(self: *Self) AppendError!*const INodeIndex {
-        return self.updateIndex("inode_index", "inode");
-    }
+pub fn findPathname(self: *Manifest, path: u32) AppendError!?Object {
+    if ((try self.pathIndex()).index.get(path)) |handle|
+        return self.get(handle);
+    return null;
+}
 
-    pub fn iNodeIter(self: *Self, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
-        return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
-    }
+pub fn findINode(self: *Manifest, inode: Io.File.INode) AppendError!?Object {
+    if ((try self.iNodeIndex()).index.get(inode)) |handle|
+        return self.get(handle);
+    return null;
+}
 
-    pub fn hashIndex(self: *Self) AppendError!*const HashIndex {
-        return self.updateIndex("hash_index", "hash");
-    }
-
-    pub fn hashIter(self: *Self, hash: u256) AppendError!HashIndex.ItemIter {
-        return (try self.hashIndex()).iterForKey(self.objects.items, hash);
-    }
-
-    pub fn get(self: *const Self, handle: u32) Object {
-        return self.objects.items[handle];
-    }
-
-    pub fn findPathname(self: *Self, path: u32) AppendError!?Object {
-        if ((try self.pathIndex()).index.get(path)) |handle|
-            return self.get(handle);
-        return null;
-    }
-
-    pub fn findINode(self: *Self, inode: Io.File.INode) AppendError!?Object {
-        if ((try self.iNodeIndex()).index.get(inode)) |handle|
-            return self.get(handle);
-        return null;
-    }
-
-    pub fn findHash(self: *Self, hash: u256) AppendError!?Object {
-        if ((try self.hashIndex()).index.get(hash)) |handle|
-            return self.get(handle);
-        return null;
-    }
-};
+pub fn findHash(self: *Manifest, hash: u256) AppendError!?Object {
+    if ((try self.hashIndex()).index.get(hash)) |handle|
+        return self.get(handle);
+    return null;
+}
 
 test Manifest {
     var int: Interned = try .init(std.testing.allocator);

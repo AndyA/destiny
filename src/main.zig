@@ -7,7 +7,7 @@ test {
     _ = @import("destiny/Pathnames.zig");
     _ = @import("destiny/PathIndexer.zig");
     _ = @import("destiny/PathWriter.zig");
-    _ = @import("destiny/manifest.zig");
+    _ = @import("destiny/Manifest.zig");
 }
 
 pub fn main() !void {
