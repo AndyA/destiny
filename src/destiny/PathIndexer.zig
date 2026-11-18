@@ -20,10 +20,10 @@ pub fn deinit(self: *PathIndexer) void {
 }
 
 pub fn indexBelow(self: *PathIndexer, parent: u32, pathname: []const u8) Allocator.Error!u32 {
-    var iter = std.mem.splitScalar(u8, pathname, '/');
     var current = parent;
     var pos: usize = 0;
 
+    var iter = std.mem.splitScalar(u8, pathname, '/');
     // Skip over common prefix
     while (iter.next()) |name| : (pos += 1) {
         const items = &self.path_nodes.items;
