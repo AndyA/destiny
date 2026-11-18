@@ -147,6 +147,10 @@ pub fn deinit(self: *Manifest) void {
     self.hash_index.deinit(self.allocator);
 }
 
+pub fn size(self: *const Manifest) usize {
+    return self.objects.items.len;
+}
+
 pub fn append(self: *Manifest, object: Object) AppendError!void {
     const handle: u32 = @intCast(self.objects.items.len);
     assert(handle != LAST_HANDLE);
@@ -159,14 +163,13 @@ fn updateIndex(
     comptime object_field: []const u8,
 ) AppendError!*const @TypeOf(@field(self, index_field)) {
     const index = &@field(self, index_field);
-    const start = index.size();
-    const end = self.objects.items.len;
-
-    for (self.objects.items[start..end]) |object| {
+    for (self.objects.items[index.size()..self.size()]) |object|
         try index.add(self.allocator, @field(object, object_field));
-    }
-
     return index;
+}
+
+pub fn get(self: *const Manifest, handle: u32) Object {
+    return self.objects.items[handle];
 }
 
 pub fn pathIndex(self: *Manifest) AppendError!*const PathIndex {
@@ -177,20 +180,16 @@ pub fn iNodeIndex(self: *Manifest) AppendError!*const INodeIndex {
     return self.updateIndex("inode_index", "inode");
 }
 
-pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
-    return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
-}
-
 pub fn hashIndex(self: *Manifest) AppendError!*const HashIndex {
     return self.updateIndex("hash_index", "hash");
 }
 
-pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
-    return (try self.hashIndex()).iterForKey(self.objects.items, hash);
+pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
+    return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
 }
 
-pub fn get(self: *const Manifest, handle: u32) Object {
-    return self.objects.items[handle];
+pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
+    return (try self.hashIndex()).iterForKey(self.objects.items, hash);
 }
 
 pub fn findPathname(self: *Manifest, path: u32) AppendError!?Object {
