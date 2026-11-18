@@ -1,133 +1,139 @@
 const std = @import("std");
+const Io = std.Io;
 const assert = std.debug.assert;
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 
-const Interned = @import("destiny/Interned.zig");
 const Pathnames = @import("destiny/Pathnames.zig");
 
 test {
     _ = @import("destiny/Interned.zig");
     _ = @import("destiny/Pathnames.zig");
+    _ = @import("destiny/PathIndexer.zig");
+    _ = @import("destiny/PathWriter.zig");
 }
 
-pub const PathIndexer = struct {
+pub const Object = struct {
+    path: u32,
+    inode: Io.File.INode,
+    size: u64,
+    permissions: Io.File.Permissions,
+    kind: Io.File.Kind,
+    mtime: Io.Timestamp,
+    hash: u256,
+};
+
+fn IntContext(comptime T: type) type {
+    return struct {
+        pub fn hash(_: @This(), value: T) u64 {
+            var hasher: std.hash.Wyhash = .init(0);
+            std.hash.autoHash(&hasher, value);
+            return hasher.final();
+        }
+
+        pub fn eql(_: @This(), a: T, b: T) bool {
+            return a == b;
+        }
+    };
+}
+
+const HashContext = struct {
+    pub fn hash(_: @This(), value: u256) u64 {
+        return @intCast(value & std.math.maxInt(u64));
+    }
+
+    pub fn eql(_: @This(), a: u256, b: u256) bool {
+        return a == b;
+    }
+};
+
+pub const Manifest = struct {
     const Self = @This();
+
+    const AppendError = Allocator.Error || error{ DuplicateINode, DuplicatePath };
+    const HASH_LAST = std.math.maxInt(u32);
+
     allocator: Allocator,
     pathnames: *Pathnames,
-    path_nodes: std.ArrayList(u32) = .empty,
+
+    objects: std.ArrayList(Object) = .empty,
+    hash_next: std.ArrayList(u32) = .empty,
+
+    path_index: std.hash_map.HashMapUnmanaged(
+        u32,
+        u32,
+        IntContext(u32),
+        80,
+    ) = .empty,
+
+    inode_index: std.hash_map.HashMapUnmanaged(
+        Io.File.INode,
+        u32,
+        IntContext(Io.File.INode),
+        80,
+    ) = .empty,
+
+    hash_index: std.hash_map.HashMapUnmanaged(
+        u256,
+        u32,
+        HashContext,
+        80,
+    ) = .empty,
 
     pub fn init(allocator: Allocator, pathnames: *Pathnames) Self {
         return .{ .allocator = allocator, .pathnames = pathnames };
     }
 
     pub fn deinit(self: *Self) void {
-        self.path_nodes.deinit(self.allocator);
+        self.objects.deinit(self.allocator);
+        self.hash_next.deinit(self.allocator);
+        self.path_index.deinit(self.allocator);
+        self.inode_index.deinit(self.allocator);
+        self.hash_index.deinit(self.allocator);
     }
 
-    pub fn index(self: *Self, pathname: []const u8) Allocator.Error!u32 {
-        var iter = std.mem.splitScalar(u8, pathname, '/');
-        var current = Pathnames.ROOT;
-        var pos: usize = 0;
-        const items = &self.path_nodes.items;
+    pub fn append(self: *Self, object: Object) AppendError!void {
+        const handle = self.objects.items.len;
+        assert(self.hash_next.items.len == handle);
+        try self.objects.append(self.allocator, object);
 
-        // Skip over common prefix
-        while (iter.next()) |name| : (pos += 1) {
-            if (pos < items.len) {
-                const other = self.pathnames.getElementName(items.*[pos]);
-                // Re-use common prefix
-                if (std.mem.eql(u8, name, other)) {
-                    current = items.*[pos];
-                    continue;
-                }
-                items.len = pos;
-            }
-            current = try self.pathnames.intern(current, name);
-            try self.path_nodes.append(self.allocator, current);
+        // Update the hash chain
+        {
+            const slot = try self.hash_index.getOrPutContext(
+                self.allocator,
+                object.hash,
+                .{},
+            );
+            const hash_link = if (slot.found_existing) slot.value_ptr.* else HASH_LAST;
+            slot.value_ptr.* = handle;
+            try self.hash_next.append(self.allocator, hash_link);
         }
 
-        return current;
-    }
-};
-
-test PathIndexer {
-    var int: Interned = try .init(std.testing.allocator);
-    defer int.deinit();
-    var paths: Pathnames = try .init(std.testing.allocator, &int);
-    defer paths.deinit();
-    var indexer: PathIndexer = .init(std.testing.allocator, &paths);
-    defer indexer.deinit();
-
-    const ulb_id = try indexer.index("/usr/local/bin");
-    try std.testing.expectEqual(4, ulb_id);
-    const uls_id = try indexer.index("/usr/local/share");
-    try std.testing.expectEqual(5, uls_id);
-    const ul_id = try indexer.index("/usr/local");
-    try std.testing.expectEqual(3, ul_id);
-
-    try std.testing.expectEqual(3, paths.get(ulb_id).parent);
-    try std.testing.expectEqual(3, paths.get(uls_id).parent);
-}
-
-pub const PathWriter = struct {
-    const Self = @This();
-    const Error = error{WriteFailed} || Allocator.Error;
-
-    allocator: Allocator,
-    pathnames: *Pathnames,
-
-    path_buf: std.ArrayList(u32) = .empty,
-
-    pub fn init(allocator: Allocator, pathnames: *Pathnames) Self {
-        return .{ .allocator = allocator, .pathnames = pathnames };
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.path_buf.deinit(self.allocator);
-    }
-
-    pub fn writePath(self: *Self, writer: *std.Io.Writer, path: u32) Error!void {
-        var current = path;
-        self.path_buf.items.len = 0;
-        while (current != Pathnames.ROOT) {
-            const elt = self.pathnames.get(current);
-            try self.path_buf.append(self.allocator, elt.name);
-            current = elt.parent;
+        // Update the inode index
+        {
+            const slot = try self.inode_index.getOrPutContext(
+                self.allocator,
+                object.inode,
+                .{},
+            );
+            if (slot.found_existing)
+                return error.DuplicateINode;
+            slot.value_ptr.* = handle;
         }
-        var pos = self.path_buf.items.len;
-        while (pos != 0) {
-            pos -= 1;
-            try writer.writeAll(self.pathnames.int.get(self.path_buf.items[pos]));
-            if (pos != 0)
-                try writer.writeByte('/');
+
+        // Update the path index
+        {
+            const slot = try self.path_index.getOrPutContext(
+                self.allocator,
+                object.path,
+                .{},
+            );
+            if (slot.found_existing)
+                return error.DuplicatePath;
+            slot.value_ptr.* = handle;
         }
     }
 };
-
-test PathWriter {
-    var int: Interned = try .init(std.testing.allocator);
-    defer int.deinit();
-    var paths: Pathnames = try .init(std.testing.allocator, &int);
-    defer paths.deinit();
-    var indexer: PathIndexer = .init(std.testing.allocator, &paths);
-    defer indexer.deinit();
-    var pw: PathWriter = .init(std.testing.allocator, &paths);
-    defer pw.deinit();
-
-    const ulb_id = try indexer.index("/usr/local/bin");
-    try std.testing.expectEqual(4, ulb_id);
-    const uls_id = try indexer.index("/usr/local/share");
-    try std.testing.expectEqual(5, uls_id);
-    const ul_id = try indexer.index("/usr/local");
-    try std.testing.expectEqual(3, ul_id);
-
-    var buf: [256]u8 = undefined;
-    var writer: std.Io.Writer = .fixed(&buf);
-    try pw.writePath(&writer, ulb_id);
-    try writer.flush();
-
-    try std.testing.expectEqualDeep("/usr/local/bin", writer.buffered());
-}
 
 pub fn main() !void {
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});

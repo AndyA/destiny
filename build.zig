@@ -13,6 +13,9 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const cli = b.dependency("cli", .{});
+    exe.root_module.addImport("cli", cli.module("cli"));
+
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");

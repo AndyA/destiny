@@ -5,7 +5,8 @@ const Allocator = std.mem.Allocator;
 
 const Interned = @import("Interned.zig");
 
-const Self = @This();
+const Pathnames = @This();
+
 pub const PathElement = struct {
     parent: u32,
     name: u32,
@@ -27,37 +28,37 @@ pub const ROOT: u32 = 0;
 allocator: Allocator,
 int: *Interned,
 paths: std.ArrayList(PathElement) = .empty,
-seen: std.hash_map.HashMapUnmanaged(u32, void, Self, 80) = .empty,
+seen: std.hash_map.HashMapUnmanaged(u32, void, Pathnames, 80) = .empty,
 
-pub fn init(allocator: Allocator, int: *Interned) Allocator.Error!Self {
-    var self: Self = .{ .allocator = allocator, .int = int };
+pub fn init(allocator: Allocator, int: *Interned) Allocator.Error!Pathnames {
+    var self: Pathnames = .{ .allocator = allocator, .int = int };
     // Root element always present
     try self.paths.append(self.allocator, .{ .name = 0, .parent = ROOT });
     return self;
 }
 
-pub fn deinit(self: *Self) void {
+pub fn deinit(self: *Pathnames) void {
     self.paths.deinit(self.allocator);
     self.seen.deinit(self.allocator);
 }
 
-pub fn hash(self: *const Self, id: u32) u64 {
+pub fn hash(self: *const Pathnames, id: u32) u64 {
     return self.get(id).hash();
 }
 
-pub fn eql(self: *const Self, a: u32, b: u32) bool {
+pub fn eql(self: *const Pathnames, a: u32, b: u32) bool {
     return self.get(a).eql(self.get(b));
 }
 
-pub fn get(self: *const Self, id: u32) PathElement {
+pub fn get(self: *const Pathnames, id: u32) PathElement {
     return self.paths.items[id];
 }
 
-pub fn getElementName(self: *const Self, id: u32) []const u8 {
+pub fn getElementName(self: *const Pathnames, id: u32) []const u8 {
     return self.int.get(self.get(id).name);
 }
 
-pub fn intern(self: *Self, parent: u32, name: []const u8) Allocator.Error!u32 {
+pub fn intern(self: *Pathnames, parent: u32, name: []const u8) Allocator.Error!u32 {
     const paths_limit = self.paths.items.len;
     errdefer self.paths.items.len = paths_limit;
 
@@ -78,10 +79,10 @@ pub fn intern(self: *Self, parent: u32, name: []const u8) Allocator.Error!u32 {
     return slot.key_ptr.*;
 }
 
-test "Pathnames" {
+test Pathnames {
     var int: Interned = try .init(std.testing.allocator);
     defer int.deinit();
-    var paths: Self = try .init(std.testing.allocator, &int);
+    var paths: Pathnames = try .init(std.testing.allocator, &int);
     defer paths.deinit();
 
     const usr_id = try paths.intern(ROOT, "usr");

@@ -4,7 +4,12 @@
     .fingerprint = 0x7522fbab395169ef,
     .minimum_zig_version = "0.18.0-dev.1165+ce87507d5",
     .zig_version = "0.18.0-dev.1165+ce87507d5",
-    .dependencies = .{},
+    .dependencies = .{
+        .cli = .{
+            .url = "git+https://codeberg.org/jeffective/cli.git#1fc85bafaab016e4c5016e0fddfb6133a7f90691",
+            .hash = "cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
