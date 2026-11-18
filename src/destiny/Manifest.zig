@@ -157,7 +157,7 @@ pub fn append(self: *Manifest, object: Object) AppendError!void {
     try self.objects.append(self.allocator, object);
 }
 
-fn updateIndex(
+fn syncIndex(
     self: *Manifest,
     comptime field: []const u8,
 ) AppendError!*const @TypeOf(@field(self, field ++ "_index")) {
@@ -172,15 +172,15 @@ pub fn get(self: *const Manifest, handle: u32) Object {
 }
 
 pub fn pathIndex(self: *Manifest) AppendError!*const PathIndex {
-    return self.updateIndex("path");
+    return self.syncIndex("path");
 }
 
 pub fn iNodeIndex(self: *Manifest) AppendError!*const INodeIndex {
-    return self.updateIndex("inode");
+    return self.syncIndex("inode");
 }
 
 pub fn hashIndex(self: *Manifest) AppendError!*const HashIndex {
-    return self.updateIndex("hash");
+    return self.syncIndex("hash");
 }
 
 pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
