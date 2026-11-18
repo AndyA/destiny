@@ -228,6 +228,30 @@ test Manifest {
     };
     try mf.append(main_obj);
 
+    const root_id = try indexer.index("src/root.zig");
+    const root_obj: Object = .{
+        .path = root_id,
+        .inode = 3,
+        .kind = .file,
+        .mtime = Io.Timestamp.fromNanoseconds(0),
+        .permissions = @fromBackingInt(0),
+        .hash = 0x321,
+        .size = 321,
+    };
+    try mf.append(root_obj);
+
+    const tmp_id = try indexer.index("tmp/root.zig");
+    const tmp_obj: Object = .{
+        .path = tmp_id,
+        .inode = 3,
+        .kind = .file,
+        .mtime = Io.Timestamp.fromNanoseconds(0),
+        .permissions = @fromBackingInt(0),
+        .hash = 0x321,
+        .size = 321,
+    };
+    try mf.append(tmp_obj);
+
     const mule_id = try indexer.index("src/mule.zig");
     const mule_obj: Object = .{
         .path = mule_id,
@@ -247,7 +271,12 @@ test Manifest {
     var ott_iter = try mf.hashIter(0x123);
     try std.testing.expectEqualDeep(mule_obj, ott_iter.next());
     try std.testing.expectEqualDeep(main_obj, ott_iter.next());
-    try std.testing.expectEqualDeep(null, ott_iter.next());
+    try std.testing.expectEqual(null, ott_iter.next());
+
+    var inode_iter = try mf.iNodeIter(3);
+    try std.testing.expectEqualDeep(tmp_obj, inode_iter.next());
+    try std.testing.expectEqualDeep(root_obj, inode_iter.next());
+    try std.testing.expectEqual(null, inode_iter.next());
 }
 
 pub fn main() !void {
