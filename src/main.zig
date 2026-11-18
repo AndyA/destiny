@@ -3,8 +3,11 @@ const Io = std.Io;
 const assert = std.debug.assert;
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
+const HashMapUnmanaged = std.hash_map.HashMapUnmanaged;
 
+const Interned = @import("destiny/Interned.zig");
 const Pathnames = @import("destiny/Pathnames.zig");
+const PathIndexer = @import("destiny/PathIndexer.zig");
 
 test {
     _ = @import("destiny/Interned.zig");
@@ -47,38 +50,106 @@ const HashContext = struct {
     }
 };
 
+const LINK_LAST = std.math.maxInt(u32);
+const AppendError = Allocator.Error || error{ DuplicateINode, DuplicatePath };
+
+fn MultiIndex(comptime K: type, comptime Context: type) type {
+    return struct {
+        const Self = @This();
+        pub const empty: Self = .{};
+
+        pub const ItemIter = struct {
+            const Iter = @This();
+
+            handle: u32,
+            next_link: []const u32,
+            objects: []const Object,
+
+            pub fn peek(self: *Iter) ?Object {
+                if (self.handle == LINK_LAST) return null;
+                return self.objects[self.handle];
+            }
+
+            pub fn next(self: *Iter) ?Object {
+                if (self.handle == LINK_LAST) return null;
+                defer self.handle = self.next_link[self.handle];
+                return self.objects[self.handle];
+            }
+        };
+
+        index: HashMapUnmanaged(K, u32, Context, 80) = .empty,
+        next_link: std.ArrayList(u32) = .empty,
+
+        pub fn deinit(self: *Self, gpa: Allocator) void {
+            self.index.deinit(gpa);
+            self.next_link.deinit(gpa);
+        }
+
+        pub fn add(self: *Self, gpa: Allocator, key: K) AppendError!void {
+            const slot = try self.index.getOrPutContext(gpa, key, .{});
+            const link = if (slot.found_existing) slot.value_ptr.* else LINK_LAST;
+            slot.value_ptr.* = @intCast(self.next_link.items.len);
+            try self.next_link.append(gpa, link);
+        }
+
+        pub fn size(self: *const Self) usize {
+            return self.next_link.items.len;
+        }
+
+        pub fn iterForHandle(self: *const Self, objects: []const Object, handle: u32) ItemIter {
+            return .{
+                .handle = handle,
+                .next_link = self.next_link.items,
+                .objects = objects,
+            };
+        }
+
+        pub fn iterForKey(self: *const Self, objects: []const Object, key: K) ItemIter {
+            if (self.index.get(key)) |handle|
+                return self.iterForHandle(objects, handle);
+            return self.iterForHandle(objects, LINK_LAST);
+        }
+    };
+}
+
+pub const PathIndex = struct {
+    const Self = @This();
+    pub const empty: Self = .{};
+
+    index: HashMapUnmanaged(u32, u32, IntContext(u32), 80) = .empty,
+    used: usize = 0,
+
+    pub fn deinit(self: *Self, gpa: Allocator) void {
+        self.index.deinit(gpa);
+    }
+
+    pub fn add(self: *Self, gpa: Allocator, key: u32) AppendError!void {
+        const slot = try self.index.getOrPutContext(gpa, key, .{});
+        if (slot.found_existing)
+            return error.DuplicatePath;
+        slot.value_ptr.* = @intCast(self.used);
+        self.used += 1;
+    }
+
+    pub fn size(self: *const Self) usize {
+        return self.used;
+    }
+};
+
 pub const Manifest = struct {
     const Self = @This();
 
-    const AppendError = Allocator.Error || error{ DuplicateINode, DuplicatePath };
-    const HASH_LAST = std.math.maxInt(u32);
+    pub const INodeIndex = MultiIndex(Io.File.INode, IntContext(Io.File.INode));
+    pub const HashIndex = MultiIndex(u256, HashContext);
 
     allocator: Allocator,
     pathnames: *Pathnames,
 
     objects: std.ArrayList(Object) = .empty,
-    hash_next: std.ArrayList(u32) = .empty,
 
-    path_index: std.hash_map.HashMapUnmanaged(
-        u32,
-        u32,
-        IntContext(u32),
-        80,
-    ) = .empty,
-
-    inode_index: std.hash_map.HashMapUnmanaged(
-        Io.File.INode,
-        u32,
-        IntContext(Io.File.INode),
-        80,
-    ) = .empty,
-
-    hash_index: std.hash_map.HashMapUnmanaged(
-        u256,
-        u32,
-        HashContext,
-        80,
-    ) = .empty,
+    path_index: PathIndex = .empty,
+    inode_index: INodeIndex = .empty,
+    hash_index: HashIndex = .empty,
 
     pub fn init(allocator: Allocator, pathnames: *Pathnames) Self {
         return .{ .allocator = allocator, .pathnames = pathnames };
@@ -86,54 +157,98 @@ pub const Manifest = struct {
 
     pub fn deinit(self: *Self) void {
         self.objects.deinit(self.allocator);
-        self.hash_next.deinit(self.allocator);
+
         self.path_index.deinit(self.allocator);
         self.inode_index.deinit(self.allocator);
         self.hash_index.deinit(self.allocator);
     }
 
     pub fn append(self: *Self, object: Object) AppendError!void {
-        const handle = self.objects.items.len;
-        assert(self.hash_next.items.len == handle);
+        const handle: u32 = @intCast(self.objects.items.len);
+        assert(handle != LINK_LAST);
         try self.objects.append(self.allocator, object);
+    }
 
-        // Update the hash chain
-        {
-            const slot = try self.hash_index.getOrPutContext(
-                self.allocator,
-                object.hash,
-                .{},
-            );
-            const hash_link = if (slot.found_existing) slot.value_ptr.* else HASH_LAST;
-            slot.value_ptr.* = handle;
-            try self.hash_next.append(self.allocator, hash_link);
+    fn updateIndex(
+        self: *Self,
+        comptime index_field: []const u8,
+        comptime object_field: []const u8,
+    ) AppendError!*const @TypeOf(@field(self, index_field)) {
+        const index = &@field(self, index_field);
+        const start = index.size();
+        const end = self.objects.items.len;
+
+        for (self.objects.items[start..end]) |object| {
+            try index.add(self.allocator, @field(object, object_field));
         }
 
-        // Update the inode index
-        {
-            const slot = try self.inode_index.getOrPutContext(
-                self.allocator,
-                object.inode,
-                .{},
-            );
-            if (slot.found_existing)
-                return error.DuplicateINode;
-            slot.value_ptr.* = handle;
-        }
+        return index;
+    }
 
-        // Update the path index
-        {
-            const slot = try self.path_index.getOrPutContext(
-                self.allocator,
-                object.path,
-                .{},
-            );
-            if (slot.found_existing)
-                return error.DuplicatePath;
-            slot.value_ptr.* = handle;
-        }
+    pub fn pathIndex(self: *Self) AppendError!*const PathIndex {
+        return self.updateIndex("path_index", "path");
+    }
+
+    pub fn iNodeIndex(self: *Self) AppendError!*const INodeIndex {
+        return self.updateIndex("inode_index", "inode");
+    }
+
+    pub fn iNodeIter(self: *Self, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
+        return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
+    }
+
+    pub fn hashIndex(self: *Self) AppendError!*const HashIndex {
+        return self.updateIndex("hash_index", "hash");
+    }
+
+    pub fn hashIter(self: *Self, hash: u256) AppendError!HashIndex.ItemIter {
+        return (try self.hashIndex()).iterForKey(self.objects.items, hash);
     }
 };
+
+test Manifest {
+    var int: Interned = try .init(std.testing.allocator);
+    defer int.deinit();
+    var paths: Pathnames = try .init(std.testing.allocator, &int);
+    defer paths.deinit();
+    var indexer: PathIndexer = .init(std.testing.allocator, &paths);
+    defer indexer.deinit();
+    var mf: Manifest = .init(std.testing.allocator, &paths);
+    defer mf.deinit();
+
+    const main_id = try indexer.index("src/main.zig");
+    const main_obj: Object = .{
+        .path = main_id,
+        .inode = 1,
+        .kind = .file,
+        .mtime = Io.Timestamp.fromNanoseconds(0),
+        .permissions = @fromBackingInt(0),
+        .hash = 0x123,
+        .size = 123,
+    };
+    try mf.append(main_obj);
+
+    const mule_id = try indexer.index("src/mule.zig");
+    const mule_obj: Object = .{
+        .path = mule_id,
+        .inode = 2,
+        .kind = .file,
+        .mtime = Io.Timestamp.fromNanoseconds(3_000_000),
+        .permissions = @fromBackingInt(0o777),
+        .hash = 0x123,
+        .size = 123,
+    };
+    try mf.append(mule_obj);
+
+    var nf_iter = try mf.hashIter(0xdeadbeef);
+    try std.testing.expectEqual(null, nf_iter.next());
+    try std.testing.expectEqual(null, nf_iter.next());
+
+    var ott_iter = try mf.hashIter(0x123);
+    try std.testing.expectEqualDeep(mule_obj, ott_iter.next());
+    try std.testing.expectEqualDeep(main_obj, ott_iter.next());
+    try std.testing.expectEqualDeep(null, ott_iter.next());
+}
 
 pub fn main() !void {
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
