@@ -19,9 +19,9 @@ pub fn deinit(self: *PathIndexer) void {
     self.path_nodes.deinit(self.allocator);
 }
 
-pub fn index(self: *PathIndexer, pathname: []const u8) Allocator.Error!u32 {
+pub fn indexBelow(self: *PathIndexer, parent: u32, pathname: []const u8) Allocator.Error!u32 {
     var iter = std.mem.splitScalar(u8, pathname, '/');
-    var current = Pathnames.ROOT;
+    var current = parent;
     var pos: usize = 0;
 
     // Skip over common prefix
@@ -41,6 +41,10 @@ pub fn index(self: *PathIndexer, pathname: []const u8) Allocator.Error!u32 {
     }
 
     return current;
+}
+
+pub fn index(self: *PathIndexer, pathname: []const u8) Allocator.Error!u32 {
+    return try self.indexBelow(Pathnames.ROOT, pathname);
 }
 
 test PathIndexer {
