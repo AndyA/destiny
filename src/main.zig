@@ -3,86 +3,71 @@ const assert = std.debug.assert;
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 
-pub const Interned = struct {
+const Interned = @import("destiny/Interned.zig");
+const Pathnames = @import("destiny/Pathnames.zig");
+
+test {
+    _ = @import("destiny/Interned.zig");
+    _ = @import("destiny/Pathnames.zig");
+}
+
+pub const PathIndexer = struct {
     const Self = @This();
-
     allocator: Allocator,
-    text: std.ArrayList(u8) = .empty,
-    index: std.ArrayList(u32) = .empty,
-    seen: std.hash_map.HashMapUnmanaged(u32, void, Self, 80) = .empty,
+    pathnames: *Pathnames,
+    path_nodes: std.ArrayList(u32) = .empty,
 
-    pub fn init(gpa: Allocator) Allocator.Error!Self {
-        var self: Self = .{ .allocator = gpa };
-        try self.index.append(gpa, 0);
-        return self;
+    pub fn init(allocator: Allocator, pathnames: *Pathnames) Self {
+        return .{ .allocator = allocator, .pathnames = pathnames };
     }
 
     pub fn deinit(self: *Self) void {
-        self.text.deinit(self.allocator);
-        self.index.deinit(self.allocator);
-        self.seen.deinit(self.allocator);
+        self.path_nodes.deinit(self.allocator);
     }
 
-    pub fn hash(self: *const Self, value: u32) u64 {
-        return std.hash.Wyhash.hash(0, self.get(value));
-    }
+    pub fn index(self: *Self, pathname: []const u8) Allocator.Error!u32 {
+        var iter = std.mem.splitScalar(u8, pathname, '/');
+        var current = Pathnames.ROOT;
+        var pos: usize = 0;
+        const items = &self.path_nodes.items;
 
-    pub fn eql(self: *const Self, a: u32, b: u32) bool {
-        return std.mem.eql(u8, self.get(a), self.get(b));
-    }
-
-    pub fn intern(self: *Self, str: []const u8) Allocator.Error!u32 {
-        const text_limit = self.text.items.len;
-        const index_limit = self.index.items.len;
-        errdefer {
-            self.text.items.len = text_limit;
-            self.index.items.len = index_limit;
+        // Skip over common prefix
+        while (iter.next()) |name| : (pos += 1) {
+            if (pos < items.len) {
+                const other = self.pathnames.getElementName(items.*[pos]);
+                // Re-use common prefix
+                if (std.mem.eql(u8, name, other)) {
+                    current = items.*[pos];
+                    continue;
+                }
+                items.len = pos;
+            }
+            current = try self.pathnames.intern(current, name);
+            try self.path_nodes.append(self.allocator, current);
         }
 
-        try self.text.appendSlice(self.allocator, str);
-        try self.index.append(self.allocator, @intCast(self.text.items.len));
-
-        const slot = try self.seen.getOrPutContext(
-            self.allocator,
-            @intCast(index_limit),
-            self.*,
-        );
-
-        if (slot.found_existing) {
-            // Undo the text/index append
-            self.text.items.len = text_limit;
-            self.index.items.len = index_limit;
-        }
-
-        return slot.key_ptr.*;
-    }
-
-    pub fn get(self: *const Self, id: u32) []const u8 {
-        assert(id != 0);
-        const ix = self.index.items;
-        return self.text.items[ix[id - 1]..ix[id]];
+        return current;
     }
 };
 
-test Interned {
+test PathIndexer {
     var int: Interned = try .init(std.testing.allocator);
     defer int.deinit();
+    var paths: Pathnames = try .init(std.testing.allocator, &int);
+    defer paths.deinit();
+    var indexer: PathIndexer = .init(std.testing.allocator, &paths);
+    defer indexer.deinit();
 
-    const one = try int.intern("one");
-    try std.testing.expectEqual(1, one);
-    try std.testing.expectEqualDeep("one", int.get(one));
-    const two = try int.intern("two woohoo");
-    try std.testing.expectEqual(2, two);
-    try std.testing.expectEqualDeep("two woohoo", int.get(two));
-    const another_one = try int.intern("one");
-    try std.testing.expectEqual(1, another_one);
-    try std.testing.expectEqualDeep("one", int.get(another_one));
+    const ulb_id = try indexer.index("/usr/local/bin");
+    try std.testing.expectEqual(4, ulb_id);
+    const uls_id = try indexer.index("/usr/local/share");
+    try std.testing.expectEqual(5, uls_id);
+    const ul_id = try indexer.index("/usr/local");
+    try std.testing.expectEqual(3, ul_id);
+
+    try std.testing.expectEqual(3, paths.get(ulb_id).parent);
+    try std.testing.expectEqual(3, paths.get(uls_id).parent);
 }
-
-pub const Pathname = struct {
-    name: u32,
-    parent: u32,
-};
 
 pub fn main() !void {
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
