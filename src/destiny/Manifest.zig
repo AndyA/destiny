@@ -50,7 +50,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             next_handle: []const u32,
             objects: []const Object,
 
-            pub fn peek(self: *Iter) ?Object {
+            pub fn peek(self: *const Iter) ?Object {
                 if (self.handle == LAST_HANDLE) return null;
                 return self.objects[self.handle];
             }
@@ -92,7 +92,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
         pub fn iterForKey(self: *const Self, objects: []const Object, key: K) ItemIter {
             if (self.index.get(key)) |handle|
                 return self.iterForHandle(objects, handle);
-            return self.iterForHandle(objects, LAST_HANDLE);
+            return self.iterForHandle(&.{}, LAST_HANDLE);
         }
     };
 }
