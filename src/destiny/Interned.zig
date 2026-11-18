@@ -5,14 +5,16 @@ const Allocator = std.mem.Allocator;
 
 const Interned = @This();
 
+pub const Handle = enum(u32) { _ };
+
 allocator: Allocator,
 text: std.ArrayList(u8) = .empty,
-index: std.ArrayList(u32) = .empty,
-seen: std.hash_map.HashMapUnmanaged(u32, void, Interned, 80) = .empty,
+index: std.ArrayList(Handle) = .empty,
+seen: std.hash_map.HashMapUnmanaged(Handle, void, Interned, 80) = .empty,
 
-pub fn init(gpa: Allocator) Allocator.Error!Interned {
-    var self: Interned = .{ .allocator = gpa };
-    try self.index.append(gpa, 0);
+pub fn init(allocator: Allocator) Allocator.Error!Interned {
+    var self: Interned = .{ .allocator = allocator };
+    try self.index.append(allocator, @fromBackingInt(0));
     return self;
 }
 
@@ -22,15 +24,15 @@ pub fn deinit(self: *Interned) void {
     self.seen.deinit(self.allocator);
 }
 
-pub fn hash(self: *const Interned, value: u32) u64 {
+pub fn hash(self: *const Interned, value: Handle) u64 {
     return std.hash.Wyhash.hash(0, self.get(value));
 }
 
-pub fn eql(self: *const Interned, a: u32, b: u32) bool {
+pub fn eql(self: *const Interned, a: Handle, b: Handle) bool {
     return std.mem.eql(u8, self.get(a), self.get(b));
 }
 
-pub fn intern(self: *Interned, str: []const u8) Allocator.Error!u32 {
+pub fn intern(self: *Interned, str: []const u8) Allocator.Error!Handle {
     const text_limit = self.text.items.len;
     const index_limit = self.index.items.len;
     errdefer {
@@ -39,11 +41,11 @@ pub fn intern(self: *Interned, str: []const u8) Allocator.Error!u32 {
     }
 
     try self.text.appendSlice(self.allocator, str);
-    try self.index.append(self.allocator, @intCast(self.text.items.len));
+    try self.index.append(self.allocator, @fromBackingInt(@intCast(self.text.items.len)));
 
     const slot = try self.seen.getOrPutContext(
         self.allocator,
-        @intCast(index_limit),
+        @fromBackingInt(@intCast(index_limit)),
         self.*,
     );
 
@@ -56,10 +58,11 @@ pub fn intern(self: *Interned, str: []const u8) Allocator.Error!u32 {
     return slot.key_ptr.*;
 }
 
-pub fn get(self: *const Interned, id: u32) []const u8 {
+pub fn get(self: *const Interned, handle: Handle) []const u8 {
+    const id = @backingInt(handle);
     assert(id != 0);
     const ix = self.index.items;
-    return self.text.items[ix[id - 1]..ix[id]];
+    return self.text.items[@backingInt(ix[id - 1])..@backingInt(ix[id])];
 }
 
 test Interned {
@@ -67,12 +70,12 @@ test Interned {
     defer int.deinit();
 
     const one = try int.intern("one");
-    try std.testing.expectEqual(1, one);
+    try std.testing.expectEqual(1, @backingInt(one));
     try std.testing.expectEqualDeep("one", int.get(one));
     const two = try int.intern("two woohoo");
-    try std.testing.expectEqual(2, two);
+    try std.testing.expectEqual(2, @backingInt(two));
     try std.testing.expectEqualDeep("two woohoo", int.get(two));
     const another_one = try int.intern("one");
-    try std.testing.expectEqual(1, another_one);
+    try std.testing.expectEqual(1, @backingInt(another_one));
     try std.testing.expectEqualDeep("one", int.get(another_one));
 }

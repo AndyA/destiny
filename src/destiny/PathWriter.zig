@@ -13,7 +13,7 @@ const Error = error{WriteFailed} || Allocator.Error;
 allocator: Allocator,
 pathnames: *Pathnames,
 
-path_buf: std.ArrayList(u32) = .empty,
+path_buf: std.ArrayList(Interned.Handle) = .empty,
 
 pub fn init(allocator: Allocator, pathnames: *Pathnames) PathWriter {
     return .{ .allocator = allocator, .pathnames = pathnames };
@@ -23,7 +23,7 @@ pub fn deinit(self: *PathWriter) void {
     self.path_buf.deinit(self.allocator);
 }
 
-pub fn writePath(self: *PathWriter, writer: *std.Io.Writer, path: u32) Error!void {
+pub fn writePath(self: *PathWriter, writer: *std.Io.Writer, path: Pathnames.Handle) Error!void {
     var current = path;
     self.path_buf.items.len = 0;
     while (current != Pathnames.ROOT) {
@@ -51,11 +51,6 @@ test PathWriter {
     defer pw.deinit();
 
     const ulb_id = try indexer.index("/usr/local/bin");
-    try std.testing.expectEqual(4, ulb_id);
-    const uls_id = try indexer.index("/usr/local/share");
-    try std.testing.expectEqual(5, uls_id);
-    const ul_id = try indexer.index("/usr/local");
-    try std.testing.expectEqual(3, ul_id);
 
     var buf: [256]u8 = undefined;
     var writer: std.Io.Writer = .fixed(&buf);

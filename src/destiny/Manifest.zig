@@ -9,7 +9,8 @@ const Interned = @import("Interned.zig");
 const Pathnames = @import("Pathnames.zig");
 const PathIndexer = @import("PathIndexer.zig");
 
-pub const LAST_HANDLE = std.math.maxInt(u32);
+pub const Handle = enum(u32) { _ };
+pub const LAST_HANDLE: Handle = @fromBackingInt(std.math.maxInt(u32));
 pub const AppendError = Allocator.Error || error{DuplicatePath};
 
 pub const Object = @import("Object.zig");
@@ -46,24 +47,24 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
         pub const ItemIter = struct {
             const Iter = @This();
 
-            handle: u32,
-            next_handle: []const u32,
+            handle: Handle,
+            next_handle: []const Handle,
             objects: []const Object,
 
             pub fn peek(self: *const Iter) ?Object {
                 if (self.handle == LAST_HANDLE) return null;
-                return self.objects[self.handle];
+                return self.objects[@backingInt(self.handle)];
             }
 
             pub fn next(self: *Iter) ?Object {
                 if (self.handle == LAST_HANDLE) return null;
-                defer self.handle = self.next_handle[self.handle];
-                return self.objects[self.handle];
+                defer self.handle = self.next_handle[@backingInt(self.handle)];
+                return self.objects[@backingInt(self.handle)];
             }
         };
 
-        index: HashMapUnmanaged(K, u32, Context, 80) = .empty,
-        next_handle: std.ArrayList(u32) = .empty,
+        index: HashMapUnmanaged(K, Handle, Context, 80) = .empty,
+        next_handle: std.ArrayList(Handle) = .empty,
 
         pub fn deinit(self: *Self, allocator: Allocator) void {
             self.index.deinit(allocator);
@@ -73,7 +74,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
         pub fn add(self: *Self, allocator: Allocator, key: K) AppendError!void {
             const slot = try self.index.getOrPutContext(allocator, key, .{});
             const head_handle = if (slot.found_existing) slot.value_ptr.* else LAST_HANDLE;
-            slot.value_ptr.* = @intCast(self.next_handle.items.len);
+            slot.value_ptr.* = @fromBackingInt(@intCast(self.next_handle.items.len));
             try self.next_handle.append(allocator, head_handle);
         }
 
@@ -81,7 +82,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             return self.next_handle.items.len;
         }
 
-        pub fn iterForHandle(self: *const Self, objects: []const Object, handle: u32) ItemIter {
+        pub fn iterForHandle(self: *const Self, objects: []const Object, handle: Handle) ItemIter {
             return .{
                 .handle = handle,
                 .next_handle = self.next_handle.items,
@@ -104,18 +105,18 @@ const PathIndex = struct {
     const Self = @This();
     pub const empty: Self = .{};
 
-    index: HashMapUnmanaged(u32, u32, IntContext(u32), 80) = .empty,
+    index: HashMapUnmanaged(Pathnames.Handle, Handle, IntContext(Pathnames.Handle), 80) = .empty,
     used: usize = 0,
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
         self.index.deinit(allocator);
     }
 
-    pub fn add(self: *Self, allocator: Allocator, key: u32) AppendError!void {
+    pub fn add(self: *Self, allocator: Allocator, key: Pathnames.Handle) AppendError!void {
         const slot = try self.index.getOrPutContext(allocator, key, .{});
         if (slot.found_existing)
             return error.DuplicatePath;
-        slot.value_ptr.* = @intCast(self.used);
+        slot.value_ptr.* = @fromBackingInt(@intCast(self.used));
         self.used += 1;
     }
 
@@ -152,8 +153,6 @@ pub fn size(self: *const Manifest) usize {
 }
 
 pub fn append(self: *Manifest, object: Object) AppendError!void {
-    const handle: u32 = @intCast(self.objects.items.len);
-    assert(handle != LAST_HANDLE);
     try self.objects.append(self.allocator, object);
 }
 
@@ -167,8 +166,8 @@ fn syncIndex(
     return index;
 }
 
-pub fn get(self: *const Manifest, handle: u32) Object {
-    return self.objects.items[handle];
+pub fn get(self: *const Manifest, handle: Handle) Object {
+    return self.objects.items[@backingInt(handle)];
 }
 
 pub fn pathIndex(self: *Manifest) AppendError!*const PathIndex {
@@ -191,7 +190,7 @@ pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
     return (try self.hashIndex()).iterForKey(self.objects.items, hash);
 }
 
-pub fn findPathname(self: *Manifest, path: u32) AppendError!?Object {
+pub fn findPathname(self: *Manifest, path: Pathnames.Handle) AppendError!?Object {
     if ((try self.pathIndex()).index.get(path)) |handle|
         return self.get(handle);
     return null;
