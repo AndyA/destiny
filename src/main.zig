@@ -69,6 +69,8 @@ test PathIndexer {
     try std.testing.expectEqual(3, paths.get(uls_id).parent);
 }
 
+pub const PathWriter = struct {};
+
 pub fn main() !void {
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 }
