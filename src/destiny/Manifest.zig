@@ -65,9 +65,9 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
         index: HashMapUnmanaged(K, u32, Context, 80) = .empty,
         next_handle: std.ArrayList(u32) = .empty,
 
-        pub fn deinit(self: *Self, gpa: Allocator) void {
-            self.index.deinit(gpa);
-            self.next_handle.deinit(gpa);
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            self.index.deinit(allocator);
+            self.next_handle.deinit(allocator);
         }
 
         pub fn add(self: *Self, gpa: Allocator, key: K) AppendError!void {
@@ -104,8 +104,8 @@ const PathIndex = struct {
     index: HashMapUnmanaged(u32, u32, IntContext(u32), 80) = .empty,
     used: usize = 0,
 
-    pub fn deinit(self: *Self, gpa: Allocator) void {
-        self.index.deinit(gpa);
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.index.deinit(allocator);
     }
 
     pub fn add(self: *Self, gpa: Allocator, key: u32) AppendError!void {
