@@ -6,10 +6,10 @@ const Allocator = std.mem.Allocator;
 pub const Interned = struct {
     const Self = @This();
 
+    allocator: Allocator,
     text: std.ArrayList(u8) = .empty,
     index: std.ArrayList(u32) = .empty,
     seen: std.hash_map.HashMapUnmanaged(u32, void, Self, 80) = .empty,
-    allocator: Allocator,
 
     pub fn init(gpa: Allocator) Allocator.Error!Self {
         var self: Self = .{ .allocator = gpa };
@@ -40,11 +40,16 @@ pub const Interned = struct {
         }
 
         try self.text.appendSlice(self.allocator, str);
-        const id: u32 = @intCast(index_limit);
         try self.index.append(self.allocator, @intCast(self.text.items.len));
 
-        const slot = try self.seen.getOrPutContext(self.allocator, id, self.*);
+        const slot = try self.seen.getOrPutContext(
+            self.allocator,
+            @intCast(index_limit),
+            self.*,
+        );
+
         if (slot.found_existing) {
+            // Undo the text/index append
             self.text.items.len = text_limit;
             self.index.items.len = index_limit;
         }
@@ -54,8 +59,8 @@ pub const Interned = struct {
 
     pub fn get(self: *const Self, id: u32) []const u8 {
         assert(id != 0);
-        const index = self.index.items;
-        return self.text.items[index[id - 1]..index[id]];
+        const ix = self.index.items;
+        return self.text.items[ix[id - 1]..ix[id]];
     }
 };
 
