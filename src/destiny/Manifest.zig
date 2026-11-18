@@ -97,6 +97,9 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
     };
 }
 
+pub const INodeIndex = MultiIndex(Io.File.INode, IntContext(Io.File.INode));
+pub const HashIndex = MultiIndex(u256, HashContext);
+
 const PathIndex = struct {
     const Self = @This();
     pub const empty: Self = .{};
@@ -122,9 +125,6 @@ const PathIndex = struct {
 };
 
 const Manifest = @This();
-
-pub const INodeIndex = MultiIndex(Io.File.INode, IntContext(Io.File.INode));
-pub const HashIndex = MultiIndex(u256, HashContext);
 
 allocator: Allocator,
 pathnames: *Pathnames,
@@ -159,12 +159,11 @@ pub fn append(self: *Manifest, object: Object) AppendError!void {
 
 fn updateIndex(
     self: *Manifest,
-    comptime index_field: []const u8,
-    comptime object_field: []const u8,
-) AppendError!*const @TypeOf(@field(self, index_field)) {
-    const index = &@field(self, index_field);
+    comptime field: []const u8,
+) AppendError!*const @TypeOf(@field(self, field ++ "_index")) {
+    const index = &@field(self, field ++ "_index");
     for (self.objects.items[index.size()..self.size()]) |object|
-        try index.add(self.allocator, @field(object, object_field));
+        try index.add(self.allocator, @field(object, field));
     return index;
 }
 
@@ -173,15 +172,15 @@ pub fn get(self: *const Manifest, handle: u32) Object {
 }
 
 pub fn pathIndex(self: *Manifest) AppendError!*const PathIndex {
-    return self.updateIndex("path_index", "path");
+    return self.updateIndex("path");
 }
 
 pub fn iNodeIndex(self: *Manifest) AppendError!*const INodeIndex {
-    return self.updateIndex("inode_index", "inode");
+    return self.updateIndex("inode");
 }
 
 pub fn hashIndex(self: *Manifest) AppendError!*const HashIndex {
-    return self.updateIndex("hash_index", "hash");
+    return self.updateIndex("hash");
 }
 
 pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
