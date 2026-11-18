@@ -216,8 +216,8 @@ test Manifest {
     defer paths.deinit();
     var indexer: PathIndexer = .init(std.testing.allocator, &paths);
     defer indexer.deinit();
-    var mf: Manifest = .init(std.testing.allocator, &paths);
-    defer mf.deinit();
+    var maf: Manifest = .init(std.testing.allocator, &paths);
+    defer maf.deinit();
 
     const main_path = try indexer.index("src/main.zig");
     const main_obj: Object = .{
@@ -229,7 +229,7 @@ test Manifest {
         .hash = 0x123,
         .size = 123,
     };
-    try mf.append(main_obj);
+    try maf.append(main_obj);
 
     const root_path = try indexer.index("src/root.zig");
     const root_obj: Object = .{
@@ -241,7 +241,7 @@ test Manifest {
         .hash = 0x321,
         .size = 321,
     };
-    try mf.append(root_obj);
+    try maf.append(root_obj);
 
     const tmp_path = try indexer.index("tmp/root.zig");
     const tmp_obj: Object = .{
@@ -253,7 +253,7 @@ test Manifest {
         .hash = 0x321,
         .size = 321,
     };
-    try mf.append(tmp_obj);
+    try maf.append(tmp_obj);
 
     const mule_path = try indexer.index("src/mule.zig");
     const mule_obj: Object = .{
@@ -265,18 +265,18 @@ test Manifest {
         .hash = 0x123,
         .size = 123,
     };
-    try mf.append(mule_obj);
+    try maf.append(mule_obj);
 
-    var nf_iter = try mf.hashIter(0xdeadbeef);
+    var nf_iter = try maf.hashIter(0xdeadbeef);
     try std.testing.expectEqual(null, nf_iter.next());
     try std.testing.expectEqual(null, nf_iter.next());
 
-    var ott_iter = try mf.hashIter(0x123);
+    var ott_iter = try maf.hashIter(0x123);
     try std.testing.expectEqualDeep(mule_obj, ott_iter.next());
     try std.testing.expectEqualDeep(main_obj, ott_iter.next());
     try std.testing.expectEqual(null, ott_iter.next());
 
-    var inode_iter = try mf.iNodeIter(3);
+    var inode_iter = try maf.iNodeIter(3);
     try std.testing.expectEqualDeep(tmp_obj, inode_iter.peek());
     try std.testing.expectEqualDeep(tmp_obj, inode_iter.next());
     try std.testing.expectEqualDeep(root_obj, inode_iter.peek());
@@ -284,6 +284,6 @@ test Manifest {
     try std.testing.expectEqual(null, inode_iter.peek());
     try std.testing.expectEqual(null, inode_iter.next());
 
-    const tmp_found = try mf.findPathname(tmp_path);
+    const tmp_found = try maf.findPathname(tmp_path);
     try std.testing.expectEqualDeep(tmp_obj, tmp_found);
 }
