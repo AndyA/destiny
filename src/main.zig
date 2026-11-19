@@ -111,10 +111,14 @@ pub fn main(init: std.process.Init) !void {
     defer paths.deinit();
     var scanner: Scanner = .init(init.gpa, init.io, &paths);
     defer scanner.deinit();
-    const root = try Io.Dir.openDirAbsolute(init.io, "/Users/andy/Works/zig/destiny", .{
-        .access_sub_paths = false,
-        .iterate = true,
-        .follow_symlinks = false,
-    });
-    try scanner.scan(root);
+    if (true) {
+        const root = try Io.Dir.openDirAbsolute(init.io, "/Users/andy/Works/zig/destiny", .{
+            .access_sub_paths = false,
+            .iterate = true,
+            .follow_symlinks = false,
+        });
+        try scanner.scan(root);
+    } else {
+        try scanner.scan(Io.Dir.cwd());
+    }
 }
