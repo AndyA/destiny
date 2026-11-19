@@ -271,10 +271,10 @@ test Manifest {
     try std.testing.expectEqual(null, nf_iter.next());
     try std.testing.expectEqual(null, nf_iter.next());
 
-    var ott_iter = try maf.hashIter(0x123);
-    try std.testing.expectEqualDeep(mule_obj, ott_iter.next());
-    try std.testing.expectEqualDeep(main_obj, ott_iter.next());
-    try std.testing.expectEqual(null, ott_iter.next());
+    var main_iter = try maf.hashIter(0x123);
+    try std.testing.expectEqualDeep(mule_obj, main_iter.next());
+    try std.testing.expectEqualDeep(main_obj, main_iter.next());
+    try std.testing.expectEqual(null, main_iter.next());
 
     var inode_iter = try maf.iNodeIter(3);
     try std.testing.expectEqualDeep(tmp_obj, inode_iter.peek());
