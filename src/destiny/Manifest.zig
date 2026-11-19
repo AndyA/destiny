@@ -9,8 +9,9 @@ const Interned = @import("Interned.zig");
 const Pathnames = @import("Pathnames.zig");
 const PathIndexer = @import("PathIndexer.zig");
 
-pub const Handle = enum(u32) { _ };
-pub const LAST_HANDLE: Handle = @fromBackingInt(std.math.maxInt(@typeInfo(Handle).@"enum".tag_type));
+const HandleInt = u32;
+pub const Handle = enum(HandleInt) { _ };
+pub const LAST_HANDLE: Handle = @fromBackingInt(std.math.maxInt(HandleInt));
 pub const AppendError = Allocator.Error || error{DuplicatePath};
 
 pub const Object = @import("Object.zig");
