@@ -70,6 +70,8 @@ pub const Scanner = struct {
         while (self.topOfStack()) |tos| {
             if (try tos.iter.next(self.io)) |item| {
                 const path_len = self.current_path.items.len;
+                if (item.name[0] == '.')
+                    continue;
                 const item_path = try self.pathnames.intern(tos.path, item.name);
                 switch (item.kind) {
                     .file => {
@@ -80,22 +82,21 @@ pub const Scanner = struct {
                     .directory => {
                         try self.current_path.appendSlice(self.allocator, item.name);
                         try self.current_path.append(self.allocator, '/');
-                        const sub = try tos.dir.openDir(self.io, item.name, .{
+                        const sub_dir = try tos.dir.openDir(self.io, item.name, .{
                             .access_sub_paths = false,
                             .iterate = true,
                             .follow_symlinks = false,
                         });
                         try self.push(.{
                             .path = item_path,
-                            .dir = sub,
-                            .iter = sub.iterate(),
+                            .dir = sub_dir,
+                            .iter = sub_dir.iterate(),
                             .path_len = path_len,
                         });
                     },
                     else => {},
                 }
             } else {
-                if (self.stack.items.len == 0) break;
                 const frame = self.pop();
                 frame.dir.close(self.io);
                 self.current_path.items.len = frame.path_len;
