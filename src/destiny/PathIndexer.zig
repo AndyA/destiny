@@ -11,7 +11,11 @@ pathnames: *Pathnames,
 root: Pathnames.Handle,
 path_nodes: std.ArrayList(Pathnames.Handle) = .empty,
 
-pub fn initBelow(allocator: Allocator, pathnames: *Pathnames, root: Pathnames.Handle) PathIndexer {
+pub fn initBelow(
+    allocator: Allocator,
+    pathnames: *Pathnames,
+    root: Pathnames.Handle,
+) PathIndexer {
     return .{ .allocator = allocator, .pathnames = pathnames, .root = root };
 }
 
