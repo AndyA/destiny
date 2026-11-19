@@ -8,13 +8,13 @@ const HashMapUnmanaged = std.hash_map.HashMapUnmanaged;
 const Interned = @import("Interned.zig");
 const Pathnames = @import("Pathnames.zig");
 const PathIndexer = @import("PathIndexer.zig");
+pub const Object = @import("Object.zig");
 
 const HandleInt = u32;
 pub const Handle = enum(HandleInt) { _ };
 pub const LAST_HANDLE: Handle = @fromBackingInt(std.math.maxInt(HandleInt));
-pub const AppendError = Allocator.Error || error{DuplicatePath};
 
-pub const Object = @import("Object.zig");
+pub const AppendError = Allocator.Error || error{DuplicatePath};
 
 fn IntContext(comptime T: type) type {
     return struct {
