@@ -1,4 +1,5 @@
 const std = @import("std");
+const Io = std.Io;
 const assert = std.debug.assert;
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
@@ -9,6 +10,15 @@ const PathIndexer = @import("PathIndexer.zig");
 
 const PathWriter = @This();
 const Error = error{WriteFailed} || Allocator.Error;
+
+const Fmt = struct {
+    pw: *PathWriter,
+    path: Pathnames.Handle,
+
+    pub fn format(self: @This(), writer: *Io.Writer) Io.Writer.Error!void {
+        self.pw.writePath(writer, self.path) catch return error.WriteFailed;
+    }
+};
 
 allocator: Allocator,
 pathnames: *Pathnames,
@@ -23,7 +33,7 @@ pub fn deinit(self: *PathWriter) void {
     self.path_buf.deinit(self.allocator);
 }
 
-pub fn writePath(self: *PathWriter, writer: *std.Io.Writer, path: Pathnames.Handle) Error!void {
+pub fn writePath(self: *PathWriter, writer: *Io.Writer, path: Pathnames.Handle) Error!void {
     var current = path;
     self.path_buf.items.len = 0;
     while (current != Pathnames.ROOT) {
@@ -40,6 +50,10 @@ pub fn writePath(self: *PathWriter, writer: *std.Io.Writer, path: Pathnames.Hand
     }
 }
 
+pub fn fmt(self: *PathWriter, path: Pathnames.Handle) Fmt {
+    return .{ .pw = self, .path = path };
+}
+
 test PathWriter {
     var int: Interned = try .init(std.testing.allocator);
     defer int.deinit();
@@ -53,7 +67,7 @@ test PathWriter {
     const ulb_id = try indexer.index("/usr/local/bin");
 
     var buf: [256]u8 = undefined;
-    var writer: std.Io.Writer = .fixed(&buf);
+    var writer: Io.Writer = .fixed(&buf);
     try pw.writePath(&writer, ulb_id);
     try writer.flush();
 
