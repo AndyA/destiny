@@ -23,9 +23,9 @@ const FileIteratorItem = struct {
 
 pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOptions) type {
     const ourOpenOptionas = blk: {
-        var oo = openOptions;
-        oo.iterate = true;
-        break :blk oo;
+        var options = openOptions;
+        options.iterate = true;
+        break :blk options;
     };
 
     return struct {
