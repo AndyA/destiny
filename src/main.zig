@@ -136,6 +136,8 @@ pub fn main(init: std.process.Init) !void {
             const name = item.entry.name;
             if (name.len > 0 and name[0] == '.')
                 return false;
+            if (std.mem.eql(u8, name, "MANIFEST.json"))
+                return false;
             return true;
         }
     };
