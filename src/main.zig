@@ -22,6 +22,12 @@ const FileIteratorItem = struct {
 };
 
 pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOptions) type {
+    const ourOpenOptionas = blk: {
+        var oo = openOptions;
+        oo.iterate = true;
+        break :blk oo;
+    };
+
     return struct {
         const Self = @This();
 
@@ -82,7 +88,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         }
 
         fn descend(self: *Self, tos: *const Frame, item: FileIteratorItem) Error!void {
-            const sub_dir = try tos.dir.openDir(self.io, item.entry.name, openOptions);
+            const sub_dir = try tos.dir.openDir(self.io, item.entry.name, ourOpenOptionas);
             try self.push(item.path, sub_dir);
         }
 
@@ -141,7 +147,7 @@ pub fn main(init: std.process.Init) !void {
         }
     };
 
-    const openOptions: Io.Dir.OpenOptions = .{ .iterate = true, .follow_symlinks = false };
+    const openOptions: Io.Dir.OpenOptions = .{ .follow_symlinks = false };
     const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", openOptions);
     var scanner: FileIterator(Context, openOptions) = try .init(
         init.gpa,
