@@ -147,7 +147,7 @@ pub fn main(init: std.process.Init) !void {
         }
     };
 
-    const openOptions: Io.Dir.OpenOptions = .{ .follow_symlinks = false };
+    const openOptions: Io.Dir.OpenOptions = .{ .follow_symlinks = false, .iterate = true };
     const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", openOptions);
     var scanner: FileIterator(Context, openOptions) = try .init(
         init.gpa,
@@ -160,6 +160,6 @@ pub fn main(init: std.process.Init) !void {
     defer scanner.deinit();
 
     while (try scanner.next()) |item| {
-        print("{f}\n", .{pw.fmt(item.path)});
+        print("{f} ({s})\n", .{ pw.fmt(item.path), @tagName(item.entry.kind) });
     }
 }
