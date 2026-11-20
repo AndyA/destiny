@@ -43,8 +43,8 @@ pub fn FileIterator(comptime Context: type) type {
             io: Io,
             pathnames: *Pathnames,
             ctx: Context,
-            dir: Io.Dir,
             path: Pathnames.Handle,
+            dir: Io.Dir,
         ) Allocator.Error!Self {
             var self: Self = .{
                 .allocator = allocator,
@@ -125,12 +125,6 @@ pub fn main(init: std.process.Init) !void {
     var pw: PathWriter = .init(init.gpa, &paths);
     defer pw.deinit();
 
-    const dir = try Io.Dir.openDirAbsolute(init.io, "/Users/andy/Works/zig/destiny", .{
-        .access_sub_paths = true,
-        .iterate = true,
-        .follow_symlinks = false,
-    });
-
     const Context = struct {
         pub fn shouldInclude(_: @This(), item: FileIteratorItem) bool {
             const name = item.entry.name;
@@ -142,13 +136,19 @@ pub fn main(init: std.process.Init) !void {
         }
     };
 
+    const dir = try Io.Dir.openDirAbsolute(init.io, "/Users/andy/Works/zig/destiny", .{
+        .access_sub_paths = true,
+        .iterate = true,
+        .follow_symlinks = false,
+    });
+
     var scanner: FileIterator(Context) = try .init(
         init.gpa,
         init.io,
         &paths,
         .{},
-        dir,
         Pathnames.ROOT,
+        dir,
     );
     defer scanner.deinit();
 
