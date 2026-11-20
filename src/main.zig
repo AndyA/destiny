@@ -101,7 +101,11 @@ pub fn FileIterator(comptime Context: type) type {
                 if (self.topOfStack()) |tos| {
                     if (try tos.iter.next(self.io)) |entry| {
                         const path = try self.pathnames.intern(tos.path, entry.name);
-                        const item: FileIteratorItem = .{ .path = path, .dir = tos.dir, .entry = entry };
+                        const item: FileIteratorItem = .{
+                            .path = path,
+                            .dir = tos.dir,
+                            .entry = entry,
+                        };
                         if (!self.shouldInclude(item))
                             continue;
                         if (entry.kind == .directory)
