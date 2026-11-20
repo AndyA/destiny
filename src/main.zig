@@ -117,6 +117,11 @@ pub fn FileIterator(comptime Context: type) type {
     };
 }
 
+fn isManifest(name: []const u8) bool {
+    return std.mem.startsWith(u8, name, "MANIFEST.") and
+        std.mem.endsWith(u8, name, ".json");
+}
+
 pub fn main(init: std.process.Init) !void {
     var int: Interned = try .init(init.gpa);
     defer int.deinit();
@@ -130,7 +135,7 @@ pub fn main(init: std.process.Init) !void {
             const name = item.entry.name;
             if (name.len > 0 and name[0] == '.')
                 return false;
-            if (std.mem.eql(u8, name, "MANIFEST.json"))
+            if (isManifest(name))
                 return false;
             return true;
         }
