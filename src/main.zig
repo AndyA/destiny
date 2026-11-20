@@ -141,9 +141,7 @@ pub fn main(init: std.process.Init) !void {
     };
 
     const openOptions: Io.Dir.OpenOptions = .{ .iterate = true, .follow_symlinks = false };
-
     const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", openOptions);
-
     var scanner: FileIterator(Context, openOptions) = try .init(
         init.gpa,
         init.io,
