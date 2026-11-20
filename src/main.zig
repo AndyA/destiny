@@ -22,7 +22,7 @@ const FileIteratorItem = struct {
 };
 
 pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOptions) type {
-    const ourOpenOptionas = blk: {
+    const ourOpenOptions = blk: {
         var options = openOptions;
         options.iterate = true;
         break :blk options;
@@ -88,7 +88,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         }
 
         fn descend(self: *Self, tos: *const Frame, item: FileIteratorItem) Error!void {
-            const sub_dir = try tos.dir.openDir(self.io, item.entry.name, ourOpenOptionas);
+            const sub_dir = try tos.dir.openDir(self.io, item.entry.name, ourOpenOptions);
             try self.push(item.path, sub_dir);
         }
 
