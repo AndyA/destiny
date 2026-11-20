@@ -145,7 +145,7 @@ pub fn main(init: std.process.Init) !void {
         }
     };
 
-    const dir = try Io.Dir.openDirAbsolute(init.io, "/Users/andy/Works/zig/destiny", .{
+    const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", .{
         .access_sub_paths = true,
         .iterate = true,
         .follow_symlinks = false,
