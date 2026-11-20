@@ -14,95 +14,108 @@ test {
     _ = @import("destiny/PathWriter.zig");
     _ = @import("destiny/Manifest.zig");
 }
+const FileIteratorItem = struct {
+    path: Pathnames.Handle,
+    dir: Io.Dir,
+    entry: Io.Dir.Entry,
+};
 
-pub const FileIterator = struct {
-    const Self = @This();
+pub fn FileIterator(comptime Context: type) type {
+    return struct {
+        const Self = @This();
 
-    const Error = Allocator.Error || Io.Dir.Reader.Error || Io.Dir.OpenError;
+        const Error = Allocator.Error || Io.Dir.Reader.Error || Io.Dir.OpenError;
 
-    const Frame = struct {
-        path: Pathnames.Handle,
-        dir: Io.Dir,
-        iter: Io.Dir.Iterator,
-    };
+        const Frame = struct {
+            path: Pathnames.Handle,
+            dir: Io.Dir,
+            iter: Io.Dir.Iterator,
+        };
 
-    const Item = struct {
-        path: Pathnames.Handle,
-        dir: Io.Dir,
-        entry: Io.Dir.Entry,
-    };
-
-    allocator: Allocator,
-    io: Io,
-    pathnames: *Pathnames,
-    stack: std.ArrayList(Frame) = .empty,
-
-    pub fn init(
         allocator: Allocator,
         io: Io,
         pathnames: *Pathnames,
-        dir: Io.Dir,
-        path: Pathnames.Handle,
-    ) Allocator.Error!Self {
-        var self: Self = .{
-            .allocator = allocator,
-            .io = io,
-            .pathnames = pathnames,
-        };
-        try self.push(path, dir);
-        return self;
-    }
+        ctx: Context,
+        stack: std.ArrayList(Frame) = .empty,
 
-    pub fn deinit(self: *Self) void {
-        self.stack.deinit(self.allocator);
-    }
+        pub fn init(
+            allocator: Allocator,
+            io: Io,
+            pathnames: *Pathnames,
+            ctx: Context,
+            dir: Io.Dir,
+            path: Pathnames.Handle,
+        ) Allocator.Error!Self {
+            var self: Self = .{
+                .allocator = allocator,
+                .io = io,
+                .pathnames = pathnames,
+                .ctx = ctx,
+            };
+            try self.push(path, dir);
+            return self;
+        }
 
-    fn push(self: *Self, path: Pathnames.Handle, dir: Io.Dir) Allocator.Error!void {
-        try self.stack.append(self.allocator, .{
-            .path = path,
-            .dir = dir,
-            .iter = dir.iterate(),
-        });
-    }
+        pub fn deinit(self: *Self) void {
+            self.stack.deinit(self.allocator);
+        }
 
-    fn pop(self: *Self) void {
-        assert(self.stack.items.len != 0);
-        defer self.stack.items.len -= 1;
-        const frame = self.stack.items[self.stack.items.len - 1];
-        frame.dir.close(self.io);
-    }
+        fn push(self: *Self, path: Pathnames.Handle, dir: Io.Dir) Allocator.Error!void {
+            try self.stack.append(self.allocator, .{
+                .path = path,
+                .dir = dir,
+                .iter = dir.iterate(),
+            });
+        }
 
-    fn topOfStack(self: *const Self) ?*Frame {
-        if (self.stack.items.len == 0) return null;
-        return &self.stack.items[self.stack.items.len - 1];
-    }
+        fn pop(self: *Self) void {
+            assert(self.stack.items.len != 0);
+            defer self.stack.items.len -= 1;
+            const frame = self.stack.items[self.stack.items.len - 1];
+            frame.dir.close(self.io);
+        }
 
-    fn descend(self: *Self, tos: *const Frame, item: Item) Error!void {
-        const sub_dir = try tos.dir.openDir(self.io, item.entry.name, .{
-            .access_sub_paths = true,
-            .iterate = true,
-            .follow_symlinks = false,
-        });
-        try self.push(item.path, sub_dir);
-    }
+        fn topOfStack(self: *const Self) ?*Frame {
+            if (self.stack.items.len == 0) return null;
+            return &self.stack.items[self.stack.items.len - 1];
+        }
 
-    pub fn next(self: *Self) Error!?Item {
-        while (true) {
-            if (self.topOfStack()) |tos| {
-                if (try tos.iter.next(self.io)) |entry| {
-                    const path = try self.pathnames.intern(tos.path, entry.name);
-                    const item: Item = .{ .path = path, .dir = tos.dir, .entry = entry };
-                    if (entry.kind == .directory)
-                        try self.descend(tos, item);
-                    return item;
+        fn descend(self: *Self, tos: *const Frame, item: FileIteratorItem) Error!void {
+            const sub_dir = try tos.dir.openDir(self.io, item.entry.name, .{
+                .access_sub_paths = true,
+                .iterate = true,
+                .follow_symlinks = false,
+            });
+            try self.push(item.path, sub_dir);
+        }
+
+        fn shouldInclude(self: *const Self, item: FileIteratorItem) bool {
+            if (@typeInfo(Context) == .@"struct" and @hasDecl(Context, "shouldInclude")) {
+                return self.ctx.shouldInclude(item);
+            }
+            return true;
+        }
+
+        pub fn next(self: *Self) Error!?FileIteratorItem {
+            while (true) {
+                if (self.topOfStack()) |tos| {
+                    if (try tos.iter.next(self.io)) |entry| {
+                        const path = try self.pathnames.intern(tos.path, entry.name);
+                        const item: FileIteratorItem = .{ .path = path, .dir = tos.dir, .entry = entry };
+                        if (!self.shouldInclude(item))
+                            continue;
+                        if (entry.kind == .directory)
+                            try self.descend(tos, item);
+                        return item;
+                    }
+                    self.pop();
+                } else {
+                    return null;
                 }
-                self.pop();
-            } else {
-                return null;
             }
         }
-    }
-};
+    };
+}
 
 pub fn main(init: std.process.Init) !void {
     var int: Interned = try .init(init.gpa);
@@ -118,7 +131,23 @@ pub fn main(init: std.process.Init) !void {
         .follow_symlinks = false,
     });
 
-    var scanner: FileIterator = try .init(init.gpa, init.io, &paths, dir, Pathnames.ROOT);
+    const Context = struct {
+        pub fn shouldInclude(_: @This(), item: FileIteratorItem) bool {
+            const name = item.entry.name;
+            if (name.len > 0 and name[0] == '.')
+                return false;
+            return true;
+        }
+    };
+
+    var scanner: FileIterator(Context) = try .init(
+        init.gpa,
+        init.io,
+        &paths,
+        .{},
+        dir,
+        Pathnames.ROOT,
+    );
     defer scanner.deinit();
 
     while (try scanner.next()) |item| {
