@@ -37,12 +37,20 @@ pub const FileIterator = struct {
     pathnames: *Pathnames,
     stack: std.ArrayList(Frame) = .empty,
 
-    pub fn init(allocator: Allocator, io: Io, pathnames: *Pathnames) Self {
-        return .{
+    pub fn init(
+        allocator: Allocator,
+        io: Io,
+        pathnames: *Pathnames,
+        dir: Io.Dir,
+        path: Pathnames.Handle,
+    ) Allocator.Error!Self {
+        var self: Self = .{
             .allocator = allocator,
             .io = io,
             .pathnames = pathnames,
         };
+        try self.push(path, dir);
+        return self;
     }
 
     pub fn deinit(self: *Self) void {
@@ -78,10 +86,6 @@ pub const FileIterator = struct {
         try self.push(item.path, sub_dir);
     }
 
-    pub fn start(self: *Self, dir: Io.Dir) Allocator.Error!void {
-        try self.push(Pathnames.ROOT, dir);
-    }
-
     pub fn next(self: *Self) Error!?Item {
         while (true) {
             if (self.topOfStack()) |tos| {
@@ -107,16 +111,16 @@ pub fn main(init: std.process.Init) !void {
     defer paths.deinit();
     var pw: PathWriter = .init(init.gpa, &paths);
     defer pw.deinit();
-    var scanner: FileIterator = .init(init.gpa, init.io, &paths);
-    defer scanner.deinit();
 
-    const root = try Io.Dir.openDirAbsolute(init.io, "/Users/andy/Works/zig/destiny", .{
+    const dir = try Io.Dir.openDirAbsolute(init.io, "/Users/andy/Works/zig/destiny", .{
         .access_sub_paths = true,
         .iterate = true,
         .follow_symlinks = false,
     });
 
-    try scanner.start(root);
+    var scanner: FileIterator = try .init(init.gpa, init.io, &paths, dir, Pathnames.ROOT);
+    defer scanner.deinit();
+
     while (try scanner.next()) |item| {
         print("{f}\n", .{pw.fmt(item.path)});
     }
