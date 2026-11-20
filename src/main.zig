@@ -14,6 +14,7 @@ test {
     _ = @import("destiny/PathWriter.zig");
     _ = @import("destiny/Manifest.zig");
 }
+
 const FileIteratorItem = struct {
     path: Pathnames.Handle,
     dir: Io.Dir,
