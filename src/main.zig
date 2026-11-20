@@ -90,9 +90,8 @@ pub fn FileIterator(comptime Context: type) type {
         }
 
         fn shouldInclude(self: *const Self, item: FileIteratorItem) bool {
-            if (@typeInfo(Context) == .@"struct" and @hasDecl(Context, "shouldInclude")) {
+            if (@typeInfo(Context) == .@"struct" and @hasDecl(Context, "shouldInclude"))
                 return self.ctx.shouldInclude(item);
-            }
             return true;
         }
 
