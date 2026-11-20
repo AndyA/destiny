@@ -57,19 +57,16 @@ pub const FileIterator = struct {
         });
     }
 
-    fn pop(self: *Self) Frame {
+    fn pop(self: *Self) void {
         assert(self.stack.items.len != 0);
         defer self.stack.items.len -= 1;
-        return self.stack.items[self.stack.items.len - 1];
+        const frame = self.stack.items[self.stack.items.len - 1];
+        frame.dir.close(self.io);
     }
 
     fn topOfStack(self: *const Self) ?*Frame {
         if (self.stack.items.len == 0) return null;
         return &self.stack.items[self.stack.items.len - 1];
-    }
-
-    pub fn start(self: *Self, dir: Io.Dir) Error!void {
-        try self.push(Pathnames.ROOT, dir);
     }
 
     fn descend(self: *Self, tos: *const Frame, item: Item) Error!void {
@@ -81,19 +78,21 @@ pub const FileIterator = struct {
         try self.push(item.path, sub_dir);
     }
 
+    pub fn start(self: *Self, dir: Io.Dir) Allocator.Error!void {
+        try self.push(Pathnames.ROOT, dir);
+    }
+
     pub fn next(self: *Self) Error!?Item {
         while (true) {
             if (self.topOfStack()) |tos| {
                 if (try tos.iter.next(self.io)) |entry| {
                     const path = try self.pathnames.intern(tos.path, entry.name);
                     const item: Item = .{ .path = path, .dir = tos.dir, .entry = entry };
-                    switch (entry.kind) {
-                        .directory => try self.descend(tos, item),
-                        else => return item,
-                    }
-                } else {
-                    self.pop().dir.close(self.io);
+                    if (entry.kind == .directory)
+                        try self.descend(tos, item);
+                    return item;
                 }
+                self.pop();
             } else {
                 return null;
             }
