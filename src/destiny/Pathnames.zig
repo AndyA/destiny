@@ -67,7 +67,6 @@ pub fn internHandle(self: *Pathnames, parent: Handle, name: Interned.Handle) All
     try self.paths.append(self.allocator, .{ .name = name, .parent = parent });
 
     const slot = try self.seen.getOrPutContext(self.allocator, handle, self.*);
-
     if (slot.found_existing)
         self.paths.items.len = paths_limit;
 
