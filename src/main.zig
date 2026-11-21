@@ -54,4 +54,8 @@ pub fn main(init: std.process.Init) !void {
     while (try scanner.next()) |item| {
         print("{f} ({s})\n", .{ pw.fmt(item.entry.path), @tagName(item.entry.kind) });
     }
+
+    for (1..int.index.items.len) |h| {
+        print("{d:>3}: \"{s}\"\n", .{ h, int.get(@fromBackingInt(@as(u32, @intCast(h)))) });
+    }
 }
