@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 const Interned = @import("destiny/Interned.zig");
 const Pathnames = @import("destiny/Pathnames.zig");
 const PathWriter = @import("destiny/PathWriter.zig");
+const Manifest = @import("destiny/Manifest.zig");
 const fi = @import("destiny/file_iterator.zig");
 
 test {
@@ -16,6 +17,21 @@ test {
     _ = @import("destiny/Manifest.zig");
     _ = @import("destiny/file_iterator.zig");
 }
+
+pub const Scan = struct {
+    const Self = @This();
+
+    allocator: Allocator,
+    manifest: Manifest,
+    search: std.ArrayList(Manifest) = .empty,
+
+    pub fn deinit(self: *Self) void {
+        self.manifest.deinit();
+        for (&self.search.items) |*item|
+            item.deinit();
+        self.search.deinit(self.allocator);
+    }
+};
 
 pub fn main(init: std.process.Init) !void {
     var int: Interned = try .init(init.gpa);
