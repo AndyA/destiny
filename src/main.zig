@@ -15,10 +15,22 @@ test {
     _ = @import("destiny/Manifest.zig");
 }
 
-const FileIteratorItem = struct {
+// const Entry = struct {
+//     name: []const u8,
+//     kind: Io.File.Kind,
+//     inode: Io.File.INode,
+// };
+
+const DirEntry = struct {
+    name: Interned.Handle,
     path: Pathnames.Handle,
+    kind: Io.File.Kind,
+    inode: Io.File.INode,
+};
+
+const FileIteratorItem = struct {
+    entry: DirEntry,
     dir: Io.Dir,
-    entry: Io.Dir.Entry,
 };
 
 pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOptions) type {
@@ -31,34 +43,45 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             path: Pathnames.Handle,
             dir: Io.Dir,
             iter: Io.Dir.Iterator,
+            loaded: bool = false,
+        };
+
+        const Options = struct {
+            path: Pathnames.Handle = Pathnames.ROOT,
+            sorted: bool = false,
+            ctx: Context = .{},
         };
 
         allocator: Allocator,
         io: Io,
         pathnames: *Pathnames,
-        ctx: Context,
+        options: Options,
         stack: std.ArrayList(Frame) = .empty,
+
+        // These two are only used in sorted mode
+        dir_buf: std.ArrayList(DirEntry) = .empty,
+        dir_pos: usize = 0,
 
         pub fn init(
             allocator: Allocator,
             io: Io,
             pathnames: *Pathnames,
-            ctx: Context,
-            path: Pathnames.Handle,
             dir: Io.Dir,
+            options: Options,
         ) Allocator.Error!Self {
             var self: Self = .{
                 .allocator = allocator,
                 .io = io,
                 .pathnames = pathnames,
-                .ctx = ctx,
+                .options = options,
             };
-            try self.push(path, dir);
+            try self.push(options.path, dir);
             return self;
         }
 
         pub fn deinit(self: *Self) void {
             self.stack.deinit(self.allocator);
+            self.dir_buf.deinit(self.allocator);
         }
 
         fn push(self: *Self, path: Pathnames.Handle, dir: Io.Dir) Allocator.Error!void {
@@ -82,25 +105,32 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         }
 
         fn descend(self: *Self, tos: *const Frame, item: FileIteratorItem) Error!void {
-            const sub_dir = try tos.dir.openDir(self.io, item.entry.name, openOptions);
-            try self.push(item.path, sub_dir);
+            const name = self.pathnames.int.get(item.entry.name);
+            const sub_dir = try tos.dir.openDir(self.io, name, openOptions);
+            try self.push(item.entry.path, sub_dir);
         }
 
         fn shouldInclude(self: *const Self, item: FileIteratorItem) bool {
-            if (@typeInfo(Context) == .@"struct" and @hasDecl(Context, "shouldInclude"))
-                return self.ctx.shouldInclude(item);
+            if (@typeInfo(Context) == .@"struct" and @hasDecl(Context, "shouldInclude")) {
+                return self.options.ctx.shouldInclude(item, self.pathnames.int.get(item.entry.name));
+            }
             return true;
         }
 
-        pub fn next(self: *Self) Error!?FileIteratorItem {
+        fn nextUnsorted(self: *Self) Error!?FileIteratorItem {
             while (true) {
                 if (self.topOfStack()) |tos| {
                     if (try tos.iter.next(self.io)) |entry| {
-                        const path = try self.pathnames.intern(tos.path, entry.name);
+                        const name = try self.pathnames.int.intern(entry.name);
+                        const path = try self.pathnames.internHandle(tos.path, name);
                         const item: FileIteratorItem = .{
-                            .path = path,
+                            .entry = .{
+                                .name = name,
+                                .path = path,
+                                .kind = entry.kind,
+                                .inode = entry.inode,
+                            },
                             .dir = tos.dir,
-                            .entry = entry,
                         };
                         if (!self.shouldInclude(item))
                             continue;
@@ -113,6 +143,68 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
                     return null;
                 }
             }
+        }
+
+        fn loadDir(self: *Self, tos: *Frame) Error!void {
+            self.dir_buf.items.len = 0;
+            self.dir_pos = 0;
+            while (try tos.iter.next(self.io)) |entry| {
+                const name = try self.pathnames.int.intern(entry.name);
+                const path = try self.pathnames.internHandle(tos.path, name);
+                const item: FileIteratorItem = .{
+                    .entry = .{
+                        .name = name,
+                        .path = path,
+                        .kind = entry.kind,
+                        .inode = entry.inode,
+                    },
+                    .dir = tos.dir,
+                };
+                if (!self.shouldInclude(item))
+                    continue;
+                try self.dir_buf.append(self.allocator, item.entry);
+            }
+        }
+
+        fn sortDir(self: *Self) void {
+            const Ctx = struct {
+                int: *Interned,
+                pub fn lessThan(me: @This(), lhs: DirEntry, rhs: DirEntry) bool {
+                    return std.mem.lessThan(u8, me.int.get(lhs.name), me.int.get(rhs.name));
+                }
+            };
+            const ctx: Ctx = .{ .int = self.pathnames.int };
+            std.mem.sortUnstable(DirEntry, self.dir_buf.items, ctx, Ctx.lessThan);
+        }
+
+        fn nextSorted(self: *Self) Error!?FileIteratorItem {
+            while (true) {
+                if (self.topOfStack()) |tos| {
+                    if (!tos.loaded) {
+                        try self.loadDir(tos);
+                        self.sortDir();
+                        tos.loaded = true;
+                    }
+                    if (self.dir_pos < self.dir_buf.items.len) {
+                        const entry = self.dir_buf.items[self.dir_pos];
+                        self.dir_pos += 1;
+                        const item: FileIteratorItem = .{ .entry = entry, .dir = tos.dir };
+                        if (entry.kind == .directory)
+                            try self.descend(tos, item);
+                        return item;
+                    }
+                    self.pop();
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        pub fn next(self: *Self) Error!?FileIteratorItem {
+            return switch (self.options.sorted) {
+                false => self.nextUnsorted(),
+                true => self.nextSorted(),
+            };
         }
     };
 }
@@ -131,8 +223,7 @@ pub fn main(init: std.process.Init) !void {
                 std.mem.endsWith(u8, name, ".json");
         }
 
-        pub fn shouldInclude(_: @This(), item: FileIteratorItem) bool {
-            const name = item.entry.name;
+        pub fn shouldInclude(_: @This(), _: FileIteratorItem, name: []const u8) bool {
             if (name.len > 0 and name[0] == '.')
                 return false;
             if (isManifest(name))
@@ -147,13 +238,12 @@ pub fn main(init: std.process.Init) !void {
         init.gpa,
         init.io,
         &paths,
-        .{},
-        Pathnames.ROOT,
         dir,
+        .{ .sorted = true },
     );
     defer scanner.deinit();
 
     while (try scanner.next()) |item| {
-        print("{f} ({s})\n", .{ pw.fmt(item.path), @tagName(item.entry.kind) });
+        print("{f} ({s})\n", .{ pw.fmt(item.entry.path), @tagName(item.entry.kind) });
     }
 }
