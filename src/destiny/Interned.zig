@@ -9,7 +9,7 @@ pub const Handle = enum(u32) { _ };
 
 allocator: Allocator,
 text: std.ArrayList(u8) = .empty,
-index: std.ArrayList(u32) = .empty,
+index: std.ArrayList(usize) = .empty,
 seen: std.hash_map.HashMapUnmanaged(Handle, void, Interned, 80) = .empty,
 
 pub fn init(allocator: Allocator) Allocator.Error!Interned {
