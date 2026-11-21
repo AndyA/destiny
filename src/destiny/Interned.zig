@@ -9,12 +9,12 @@ pub const Handle = enum(u32) { _ };
 
 allocator: Allocator,
 text: std.ArrayList(u8) = .empty,
-index: std.ArrayList(Handle) = .empty,
+index: std.ArrayList(u32) = .empty,
 seen: std.hash_map.HashMapUnmanaged(Handle, void, Interned, 80) = .empty,
 
 pub fn init(allocator: Allocator) Allocator.Error!Interned {
     var self: Interned = .{ .allocator = allocator };
-    try self.index.append(allocator, @fromBackingInt(0));
+    try self.index.append(allocator, 0);
     return self;
 }
 
@@ -41,7 +41,7 @@ pub fn intern(self: *Interned, str: []const u8) Allocator.Error!Handle {
     }
 
     try self.text.appendSlice(self.allocator, str);
-    try self.index.append(self.allocator, @fromBackingInt(@intCast(self.text.items.len)));
+    try self.index.append(self.allocator, @intCast(self.text.items.len));
 
     const slot = try self.seen.getOrPutContext(
         self.allocator,
@@ -62,7 +62,7 @@ pub fn get(self: *const Interned, handle: Handle) []const u8 {
     const id = @backingInt(handle);
     assert(id != 0);
     const ix = self.index.items;
-    return self.text.items[@backingInt(ix[id - 1])..@backingInt(ix[id])];
+    return self.text.items[ix[id - 1]..ix[id]];
 }
 
 test Interned {
