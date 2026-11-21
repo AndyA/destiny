@@ -15,12 +15,6 @@ test {
     _ = @import("destiny/Manifest.zig");
 }
 
-// const Entry = struct {
-//     name: []const u8,
-//     kind: Io.File.Kind,
-//     inode: Io.File.INode,
-// };
-
 const DirEntry = struct {
     name: Interned.Handle,
     path: Pathnames.Handle,
@@ -43,6 +37,8 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             path: Pathnames.Handle,
             dir: Io.Dir,
             iter: Io.Dir.Iterator,
+            dir_limit: usize,
+            dir_pos: usize,
             loaded: bool = false,
         };
 
@@ -60,7 +56,6 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
 
         // These two are only used in sorted mode
         dir_buf: std.ArrayList(DirEntry) = .empty,
-        dir_pos: usize = 0,
 
         pub fn init(
             allocator: Allocator,
@@ -85,10 +80,13 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         }
 
         fn push(self: *Self, path: Pathnames.Handle, dir: Io.Dir) Allocator.Error!void {
+            const dir_limit = self.dir_buf.items.len;
             try self.stack.append(self.allocator, .{
                 .path = path,
                 .dir = dir,
                 .iter = dir.iterate(),
+                .dir_limit = dir_limit,
+                .dir_pos = dir_limit,
             });
         }
 
@@ -96,6 +94,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             assert(self.stack.items.len != 0);
             defer self.stack.items.len -= 1;
             const frame = self.stack.items[self.stack.items.len - 1];
+            self.dir_buf.items.len = frame.dir_limit;
             frame.dir.close(self.io);
         }
 
@@ -132,8 +131,6 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         }
 
         fn loadDir(self: *Self, tos: *Frame) Error!void {
-            self.dir_buf.items.len = 0;
-            self.dir_pos = 0;
             while (try tos.iter.next(self.io)) |entry| {
                 const item = try self.tosItem(tos, entry);
                 if (!self.shouldInclude(item))
@@ -142,28 +139,29 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             }
         }
 
-        fn sortDir(self: *Self) void {
+        fn sortDir(self: *Self, tos: *const Frame) void {
             const Ctx = struct {
                 int: *Interned,
-                pub fn lessThan(me: @This(), lhs: DirEntry, rhs: DirEntry) bool {
-                    return std.mem.lessThan(u8, me.int.get(lhs.name), me.int.get(rhs.name));
+                pub fn lessThan(s: @This(), l: DirEntry, r: DirEntry) bool {
+                    return std.mem.lessThan(u8, s.int.get(l.name), s.int.get(r.name));
                 }
             };
             const ctx: Ctx = .{ .int = self.pathnames.int };
-            std.mem.sortUnstable(DirEntry, self.dir_buf.items, ctx, Ctx.lessThan);
+            std.mem.sortUnstable(DirEntry, self.dir_buf.items[tos.dir_limit..], ctx, Ctx.lessThan);
         }
 
         fn nextSorted(self: *Self) Error!?FileIteratorItem {
             while (true) {
                 if (self.topOfStack()) |tos| {
                     if (!tos.loaded) {
+                        assert(tos.dir_limit == self.dir_buf.items.len);
                         try self.loadDir(tos);
-                        self.sortDir();
+                        self.sortDir(tos);
                         tos.loaded = true;
                     }
-                    if (self.dir_pos < self.dir_buf.items.len) {
-                        const entry = self.dir_buf.items[self.dir_pos];
-                        self.dir_pos += 1;
+                    if (tos.dir_pos < self.dir_buf.items.len) {
+                        const entry = self.dir_buf.items[tos.dir_pos];
+                        tos.dir_pos += 1;
                         const item: FileIteratorItem = .{ .entry = entry, .dir = tos.dir };
                         if (entry.kind == .directory)
                             try self.descend(tos, item);
@@ -171,6 +169,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
                     }
                     self.pop();
                 } else {
+                    assert(self.dir_buf.items.len == 0);
                     return null;
                 }
             }
