@@ -109,7 +109,11 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             return true;
         }
 
-        fn makeIteratorItem(self: *Self, tos: *Frame, entry: Io.Dir.Entry) Allocator.Error!FileIteratorItem {
+        fn makeIteratorItem(
+            self: *Self,
+            tos: *Frame,
+            entry: Io.Dir.Entry,
+        ) Allocator.Error!FileIteratorItem {
             const name = try self.pathnames.int.intern(entry.name);
             const path = try self.pathnames.internHandle(tos.path, name);
             return .{
