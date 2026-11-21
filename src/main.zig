@@ -116,7 +116,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             return true;
         }
 
-        fn tosItem(self: *Self, tos: *Frame, entry: Io.Dir.Entry) Allocator.Error!FileIteratorItem {
+        fn makeIteratorItem(self: *Self, tos: *Frame, entry: Io.Dir.Entry) Allocator.Error!FileIteratorItem {
             const name = try self.pathnames.int.intern(entry.name);
             const path = try self.pathnames.internHandle(tos.path, name);
             return .{
@@ -132,7 +132,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
 
         fn loadDir(self: *Self, tos: *Frame) Error!void {
             while (try tos.iter.next(self.io)) |entry| {
-                const item = try self.tosItem(tos, entry);
+                const item = try self.makeIteratorItem(tos, entry);
                 if (!self.shouldInclude(item))
                     continue;
                 try self.dir_buf.append(self.allocator, item.entry);
@@ -179,7 +179,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             while (true) {
                 if (self.topOfStack()) |tos| {
                     if (try tos.iter.next(self.io)) |entry| {
-                        const item = try self.tosItem(tos, entry);
+                        const item = try self.makeIteratorItem(tos, entry);
                         if (!self.shouldInclude(item))
                             continue;
                         if (entry.kind == .directory)
