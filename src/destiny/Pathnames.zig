@@ -59,15 +59,12 @@ pub fn getElementName(self: *const Pathnames, handle: Handle) []const u8 {
     return self.int.get(self.get(handle).name);
 }
 
-pub fn intern(self: *Pathnames, parent: Handle, name: []const u8) Allocator.Error!Handle {
+pub fn internHandle(self: *Pathnames, parent: Handle, name: Interned.Handle) Allocator.Error!Handle {
     const paths_limit = self.paths.items.len;
     errdefer self.paths.items.len = paths_limit;
     const handle: Handle = @fromBackingInt(@intCast(paths_limit));
 
-    try self.paths.append(self.allocator, .{
-        .name = try self.int.intern(name),
-        .parent = parent,
-    });
+    try self.paths.append(self.allocator, .{ .name = name, .parent = parent });
 
     const slot = try self.seen.getOrPutContext(self.allocator, handle, self.*);
 
@@ -75,6 +72,10 @@ pub fn intern(self: *Pathnames, parent: Handle, name: []const u8) Allocator.Erro
         self.paths.items.len = paths_limit;
 
     return slot.key_ptr.*;
+}
+
+pub fn intern(self: *Pathnames, parent: Handle, name: []const u8) Allocator.Error!Handle {
+    return self.internHandle(parent, try self.int.intern(name));
 }
 
 test Pathnames {
