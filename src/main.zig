@@ -117,49 +117,25 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             return true;
         }
 
-        fn nextUnsorted(self: *Self) Error!?FileIteratorItem {
-            while (true) {
-                if (self.topOfStack()) |tos| {
-                    if (try tos.iter.next(self.io)) |entry| {
-                        const name = try self.pathnames.int.intern(entry.name);
-                        const path = try self.pathnames.internHandle(tos.path, name);
-                        const item: FileIteratorItem = .{
-                            .entry = .{
-                                .name = name,
-                                .path = path,
-                                .kind = entry.kind,
-                                .inode = entry.inode,
-                            },
-                            .dir = tos.dir,
-                        };
-                        if (!self.shouldInclude(item))
-                            continue;
-                        if (entry.kind == .directory)
-                            try self.descend(tos, item);
-                        return item;
-                    }
-                    self.pop();
-                } else {
-                    return null;
-                }
-            }
+        fn tosItem(self: *Self, tos: *Frame, entry: Io.Dir.Entry) Allocator.Error!FileIteratorItem {
+            const name = try self.pathnames.int.intern(entry.name);
+            const path = try self.pathnames.internHandle(tos.path, name);
+            return .{
+                .entry = .{
+                    .name = name,
+                    .path = path,
+                    .kind = entry.kind,
+                    .inode = entry.inode,
+                },
+                .dir = tos.dir,
+            };
         }
 
         fn loadDir(self: *Self, tos: *Frame) Error!void {
             self.dir_buf.items.len = 0;
             self.dir_pos = 0;
             while (try tos.iter.next(self.io)) |entry| {
-                const name = try self.pathnames.int.intern(entry.name);
-                const path = try self.pathnames.internHandle(tos.path, name);
-                const item: FileIteratorItem = .{
-                    .entry = .{
-                        .name = name,
-                        .path = path,
-                        .kind = entry.kind,
-                        .inode = entry.inode,
-                    },
-                    .dir = tos.dir,
-                };
+                const item = try self.tosItem(tos, entry);
                 if (!self.shouldInclude(item))
                     continue;
                 try self.dir_buf.append(self.allocator, item.entry);
@@ -189,6 +165,24 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
                         const entry = self.dir_buf.items[self.dir_pos];
                         self.dir_pos += 1;
                         const item: FileIteratorItem = .{ .entry = entry, .dir = tos.dir };
+                        if (entry.kind == .directory)
+                            try self.descend(tos, item);
+                        return item;
+                    }
+                    self.pop();
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        fn nextUnsorted(self: *Self) Error!?FileIteratorItem {
+            while (true) {
+                if (self.topOfStack()) |tos| {
+                    if (try tos.iter.next(self.io)) |entry| {
+                        const item = try self.tosItem(tos, entry);
+                        if (!self.shouldInclude(item))
+                            continue;
                         if (entry.kind == .directory)
                             try self.descend(tos, item);
                         return item;
