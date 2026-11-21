@@ -139,8 +139,8 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         fn sortDir(self: *Self, tos: *const Frame) void {
             const Ctx = struct {
                 int: *Interned,
-                pub fn lessThan(s: @This(), l: DirEntry, r: DirEntry) bool {
-                    return std.mem.lessThan(u8, s.int.get(l.name), s.int.get(r.name));
+                pub fn lessThan(me: @This(), lhs: DirEntry, rhs: DirEntry) bool {
+                    return std.mem.lessThan(u8, me.int.get(lhs.name), me.int.get(rhs.name));
                 }
             };
             const ctx: Ctx = .{ .int = self.pathnames.int };
