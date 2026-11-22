@@ -14,7 +14,7 @@ pub const PathElement = struct {
     parent: Handle,
     name: Interned.Handle,
 
-    pub fn hash(self: *const @This()) u64 {
+    pub fn hash(self: @This()) u64 {
         var hasher: std.hash.Wyhash = .init(0);
         std.hash.autoHash(&hasher, self);
         return hasher.final();
