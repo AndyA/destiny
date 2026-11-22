@@ -44,7 +44,7 @@ pub fn index(self: *PathIndexer, pathname: []const u8) Allocator.Error!Pathnames
             }
             items.len = pos;
         }
-        current = try self.pathnames.intern(current, name);
+        current = try self.pathnames.internName(current, name);
         try self.path_nodes.append(self.allocator, current);
     }
 

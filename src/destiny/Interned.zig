@@ -32,7 +32,7 @@ pub fn eql(self: *const Interned, a: Handle, b: Handle) bool {
     return std.mem.eql(u8, self.get(a), self.get(b));
 }
 
-pub fn intern(self: *Interned, str: []const u8) Allocator.Error!Handle {
+pub fn internSlice(self: *Interned, str: []const u8) Allocator.Error!Handle {
     const text_limit = self.text.items.len;
     const index_limit = self.index.items.len;
     errdefer {
@@ -69,13 +69,13 @@ test Interned {
     var int: Interned = try .init(std.testing.allocator);
     defer int.deinit();
 
-    const one = try int.intern("one");
+    const one = try int.internSlice("one");
     try std.testing.expectEqual(1, @backingInt(one));
     try std.testing.expectEqualDeep("one", int.get(one));
-    const two = try int.intern("two woohoo");
+    const two = try int.internSlice("two woohoo");
     try std.testing.expectEqual(2, @backingInt(two));
     try std.testing.expectEqualDeep("two woohoo", int.get(two));
-    const another_one = try int.intern("one");
+    const another_one = try int.internSlice("one");
     try std.testing.expectEqual(1, @backingInt(another_one));
     try std.testing.expectEqualDeep("one", int.get(another_one));
 }

@@ -73,8 +73,8 @@ pub fn internHandle(self: *Pathnames, parent: Handle, name: Interned.Handle) All
     return slot.key_ptr.*;
 }
 
-pub fn intern(self: *Pathnames, parent: Handle, name: []const u8) Allocator.Error!Handle {
-    return self.internHandle(parent, try self.int.intern(name));
+pub fn internName(self: *Pathnames, parent: Handle, name: []const u8) Allocator.Error!Handle {
+    return self.internHandle(parent, try self.int.internSlice(name));
 }
 
 test Pathnames {
@@ -83,19 +83,19 @@ test Pathnames {
     var paths: Pathnames = try .init(std.testing.allocator, &int);
     defer paths.deinit();
 
-    const usr_id = try paths.intern(ROOT, "usr");
+    const usr_id = try paths.internName(ROOT, "usr");
     try std.testing.expectEqual(1, @backingInt(usr_id));
     try std.testing.expectEqualDeep("usr", paths.getElementName(usr_id));
 
-    const local_id = try paths.intern(usr_id, "local");
+    const local_id = try paths.internName(usr_id, "local");
     try std.testing.expectEqual(2, @backingInt(local_id));
 
-    const share_id = try paths.intern(local_id, "share");
+    const share_id = try paths.internName(local_id, "share");
     try std.testing.expectEqual(3, @backingInt(share_id));
 
-    const bin_id = try paths.intern(local_id, "bin");
+    const bin_id = try paths.internName(local_id, "bin");
     try std.testing.expectEqual(4, @backingInt(bin_id));
 
-    const another_local_id = try paths.intern(usr_id, "local");
+    const another_local_id = try paths.internName(usr_id, "local");
     try std.testing.expectEqual(2, @backingInt(another_local_id));
 }

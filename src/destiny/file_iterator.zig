@@ -114,7 +114,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             tos: *Frame,
             entry: Io.Dir.Entry,
         ) Allocator.Error!FileIteratorItem {
-            const name = try self.pathnames.int.intern(entry.name);
+            const name = try self.pathnames.int.internSlice(entry.name);
             const path = try self.pathnames.internHandle(tos.path, name);
             return .{
                 .entry = .{
@@ -127,7 +127,11 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             };
         }
 
+        /// Iterate over a directory, interning names and paths and appending the
+        /// resulting entries to `dir_buf`. Previous items in `dir_buf` are
+        /// unaffected (they belong to a parent directory).
         fn loadDir(self: *Self, tos: *Frame) Error!void {
+            assert(self.dir_buf.items.len == tos.dir_limit);
             while (try tos.iter.next(self.io)) |entry| {
                 const item = try self.makeIteratorItem(tos, entry);
                 if (!self.shouldInclude(item))
@@ -136,6 +140,8 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             }
         }
 
+        /// Sort the buffered directory entries between `tos.dir_limit` and the end
+        /// of the buffer - i.e. the most recently read directory.
         fn sortDir(self: *Self, tos: *const Frame) void {
             const Ctx = struct {
                 int: *Interned,
@@ -144,7 +150,12 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
                 }
             };
             const ctx: Ctx = .{ .int = self.pathnames.int };
-            std.mem.sortUnstable(DirEntry, self.dir_buf.items[tos.dir_limit..], ctx, Ctx.lessThan);
+            std.mem.sortUnstable(
+                DirEntry,
+                self.dir_buf.items[tos.dir_limit..],
+                ctx,
+                Ctx.lessThan,
+            );
         }
 
         fn nextSorted(self: *Self) Error!?FileIteratorItem {
