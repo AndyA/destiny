@@ -83,7 +83,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             return self.next_handle.items.len;
         }
 
-        pub fn iterForHandle(self: *const Self, objects: []const Object, handle: Handle) ItemIter {
+        fn iterForHandle(self: *const Self, objects: []const Object, handle: Handle) ItemIter {
             return .{
                 .handle = handle,
                 .next_handle = self.next_handle.items,
