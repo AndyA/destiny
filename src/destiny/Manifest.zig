@@ -183,14 +183,6 @@ pub fn hashIndex(self: *Manifest) AppendError!*const HashIndex {
     return self.syncIndex("hash");
 }
 
-pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
-    return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
-}
-
-pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
-    return (try self.hashIndex()).iterForKey(self.objects.items, hash);
-}
-
 pub fn findPathname(self: *Manifest, path: Pathnames.Handle) AppendError!?Object {
     if ((try self.pathIndex()).index.get(path)) |handle|
         return self.get(handle);
@@ -207,6 +199,14 @@ pub fn findHash(self: *Manifest, hash: u256) AppendError!?Object {
     if ((try self.hashIndex()).index.get(hash)) |handle|
         return self.get(handle);
     return null;
+}
+
+pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
+    return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
+}
+
+pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
+    return (try self.hashIndex()).iterForKey(self.objects.items, hash);
 }
 
 test Manifest {
