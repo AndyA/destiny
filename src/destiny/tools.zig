@@ -2,7 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 
 pub fn sha256File(io: Io, file: Io.File) Io.File.ReadStreamingError!u256 {
-    var hasher = std.crypto.hash.sha2.Sha256.init(.{});
+    var hasher: std.crypto.hash.sha2.Sha256 = .init(.{});
     var buf: [128 * 1024]u8 = undefined;
 
     read: while (true) {

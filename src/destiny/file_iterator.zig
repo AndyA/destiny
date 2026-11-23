@@ -38,12 +38,12 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         pub const Options = struct {
             path: Pathnames.Handle = Pathnames.ROOT,
             sorted: bool = false,
-            ctx: Context = .{},
         };
 
         allocator: Allocator,
         io: Io,
         pathnames: *Pathnames,
+        ctx: Context,
         options: Options,
         stack: std.ArrayList(Frame) = .empty,
 
@@ -55,12 +55,14 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             io: Io,
             pathnames: *Pathnames,
             dir: Io.Dir,
+            ctx: Context,
             options: Options,
         ) Allocator.Error!Self {
             var self: Self = .{
                 .allocator = allocator,
                 .io = io,
                 .pathnames = pathnames,
+                .ctx = ctx,
                 .options = options,
             };
             try self.push(options.path, dir);
@@ -104,7 +106,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
 
         fn shouldInclude(self: *const Self, item: FileIteratorItem) bool {
             if (@typeInfo(Context) == .@"struct" and @hasDecl(Context, "shouldInclude")) {
-                return self.options.ctx.shouldInclude(item, self.pathnames.int.get(item.entry.name));
+                return self.ctx.shouldInclude(item, self.pathnames.int.get(item.entry.name));
             }
             return true;
         }

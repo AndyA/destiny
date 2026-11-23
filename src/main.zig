@@ -73,7 +73,11 @@ pub const Scan = struct {
             object.mtime.nanoseconds == stat.mtime.nanoseconds;
     }
 
-    fn matchInManifest(manifest: *Manifest, path: Pathnames.Handle, stat: Io.File.Stat) Error!?Object {
+    fn matchInManifest(
+        manifest: *Manifest,
+        path: Pathnames.Handle,
+        stat: Io.File.Stat,
+    ) Error!?Object {
         if (try manifest.findPathname(path)) |found| {
             if (objectMatches(found, stat))
                 return found;
@@ -127,43 +131,39 @@ pub const Scan = struct {
         };
     }
 
+    fn isManifest(name: []const u8) bool {
+        return std.mem.startsWith(u8, name, "MANIFEST.") and
+            std.mem.endsWith(u8, name, ".json");
+    }
+
+    pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool {
+        if (name.len > 0 and name[0] == '.')
+            return false;
+        if (isManifest(name))
+            return false;
+        return true;
+    }
+
     pub fn scan(self: *Self, dir: Io.Dir) Error!void {
-        const Context = struct {
-            fn isManifest(name: []const u8) bool {
-                return std.mem.startsWith(u8, name, "MANIFEST.") and
-                    std.mem.endsWith(u8, name, ".json");
-            }
-
-            pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool {
-                if (name.len > 0 and name[0] == '.')
-                    return false;
-                if (isManifest(name))
-                    return false;
-                return true;
-            }
-        };
-
-        var scanner: fi.FileIterator(Context, Scan.openOptions) = try .init(
+        var scanner: fi.FileIterator(Self, openOptions) = try .init(
             self.allocator,
             self.io,
             self.pathnames,
             dir,
+            self.*,
             .{ .sorted = true },
         );
         defer scanner.deinit();
 
+        print("Scanning .\n", .{});
         while (try scanner.next()) |item| {
             switch (item.entry.kind) {
-                .file => {
-                    const obj = try self.createObject(item);
-                    try self.manifest.append(obj);
-                },
-                .directory => {
-                    print("Scanning {f}\n", .{self.fmtPath(item.entry.path)});
-                },
-                else => |kind| {
-                    print("  Skipping {s} {f}\n", .{ @tagName(kind), self.fmtPath(item.entry.path) });
-                },
+                .file => try self.manifest.append(try self.createObject(item)),
+                .directory => print("Scanning {f}\n", .{self.fmtPath(item.entry.path)}),
+                else => |kind| print(
+                    "  Skipping {s} {f}\n",
+                    .{ @tagName(kind), self.fmtPath(item.entry.path) },
+                ),
             }
         }
     }
@@ -182,14 +182,6 @@ pub fn main(init: std.process.Init) !void {
     var scan: Scan = .init(init.gpa, init.io, &paths);
     defer scan.deinit();
     try scan.scan(dir);
-
-    if (false) {
-        const fh = try dir.openFile(init.io, "tmp/video.mov", .{ .mode = .read_only });
-        defer fh.close(init.io);
-
-        const hash = try sha256File(init.io, fh);
-        print("hash: {x}\n", .{hash});
-    }
 
     if (false) {
         for (1..int.index.items.len) |h| {
