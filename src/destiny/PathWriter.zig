@@ -11,7 +11,7 @@ const PathIndexer = @import("PathIndexer.zig");
 const PathWriter = @This();
 const Error = error{WriteFailed} || Allocator.Error;
 
-const Fmt = struct {
+pub const Fmt = struct {
     pw: *PathWriter,
     path: Pathnames.Handle,
 
