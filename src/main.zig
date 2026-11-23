@@ -8,6 +8,7 @@ const Pathnames = @import("destiny/Pathnames.zig");
 const PathWriter = @import("destiny/PathWriter.zig");
 const Manifest = @import("destiny/Manifest.zig");
 const fi = @import("destiny/file_iterator.zig");
+const sha256File = @import("destiny/tools.zig").sha256File;
 
 test {
     _ = @import("destiny/Interned.zig");
@@ -32,24 +33,6 @@ pub const Scan = struct {
         self.search.deinit(self.allocator);
     }
 };
-
-fn sha256File(io: Io, file: Io.File) Io.File.ReadStreamingError!u256 {
-    var hasher = std.crypto.hash.sha2.Sha256.init(.{});
-    var buf: [128 * 1024]u8 = undefined;
-
-    read: while (true) {
-        const n_read = file.readStreaming(io, &.{&buf}) catch |err| {
-            switch (err) {
-                error.EndOfStream => break :read,
-                else => return err,
-            }
-        };
-        hasher.update(buf[0..n_read]);
-    }
-
-    const hash = hasher.finalResult();
-    return std.mem.readInt(u256, &hash, .big);
-}
 
 pub fn main(init: std.process.Init) !void {
     var int: Interned = try .init(init.gpa);
@@ -77,11 +60,13 @@ pub fn main(init: std.process.Init) !void {
     const openOptions: Io.Dir.OpenOptions = .{ .follow_symlinks = false, .iterate = true };
     const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", openOptions);
 
-    const fh = try dir.openFile(init.io, "tmp/video.mov", .{ .mode = .read_only });
-    defer fh.close(init.io);
+    if (false) {
+        const fh = try dir.openFile(init.io, "tmp/video.mov", .{ .mode = .read_only });
+        defer fh.close(init.io);
 
-    const hash = try sha256File(init.io, fh);
-    print("hash: {x}\n", .{hash});
+        const hash = try sha256File(init.io, fh);
+        print("hash: {x}\n", .{hash});
+    }
 
     var scanner: fi.FileIterator(Context, openOptions) = try .init(
         init.gpa,
