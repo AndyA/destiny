@@ -33,6 +33,24 @@ pub const Scan = struct {
     }
 };
 
+fn sha256File(io: Io, file: Io.File) Io.File.ReadStreamingError!u256 {
+    var hasher = std.crypto.hash.sha2.Sha256.init(.{});
+    var buf: [128 * 1024]u8 = undefined;
+
+    read: while (true) {
+        const n_read = file.readStreaming(io, &.{&buf}) catch |err| {
+            switch (err) {
+                error.EndOfStream => break :read,
+                else => return err,
+            }
+        };
+        hasher.update(buf[0..n_read]);
+    }
+
+    const hash = hasher.finalResult();
+    return std.mem.readInt(u256, &hash, .big);
+}
+
 pub fn main(init: std.process.Init) !void {
     var int: Interned = try .init(init.gpa);
     defer int.deinit();
@@ -58,6 +76,13 @@ pub fn main(init: std.process.Init) !void {
 
     const openOptions: Io.Dir.OpenOptions = .{ .follow_symlinks = false, .iterate = true };
     const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", openOptions);
+
+    const fh = try dir.openFile(init.io, "tmp/video.mov", .{ .mode = .read_only });
+    defer fh.close(init.io);
+
+    const hash = try sha256File(init.io, fh);
+    print("hash: {x}\n", .{hash});
+
     var scanner: fi.FileIterator(Context, openOptions) = try .init(
         init.gpa,
         init.io,
