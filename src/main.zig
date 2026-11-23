@@ -22,10 +22,16 @@ test {
 
 pub const Scan = struct {
     const Self = @This();
+
     pub const openOptions: Io.Dir.OpenOptions = .{
         .follow_symlinks = false,
         .iterate = true,
     };
+
+    pub const Error = Manifest.AppendError ||
+        Io.File.StatError ||
+        Io.File.OpenError ||
+        Io.File.ReadStreamingError;
 
     allocator: Allocator,
     io: Io,
@@ -33,7 +39,6 @@ pub const Scan = struct {
 
     manifest: Manifest,
     path_writer: PathWriter,
-    previous: std.ArrayList(Manifest) = .empty,
     search: std.ArrayList(Manifest) = .empty,
 
     pub fn init(allocator: Allocator, io: Io, pathnames: *Pathnames) Self {
@@ -48,14 +53,11 @@ pub const Scan = struct {
 
     pub fn deinitShallow(self: *Self) void {
         self.manifest.deinit();
-        self.previous.deinit(self.allocator);
         self.search.deinit(self.allocator);
         self.path_writer.deinit();
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.previous.items) |*item|
-            item.deinit();
         for (self.search.items) |*item|
             item.deinit();
         self.deinitShallow();
@@ -65,22 +67,54 @@ pub const Scan = struct {
         return self.path_writer.fmt(path);
     }
 
-    fn findByINode(self: *Self, inode: Io.File.INode) !?Object {
-        for (self.previous.items) |*manifest|
-            if (try manifest.findINode(inode)) |obj|
-                return obj;
+    fn objectMatches(object: Object, stat: Io.File.Stat) bool {
+        return object.size == stat.size and
+            object.permissions == stat.permissions and
+            object.mtime.nanoseconds == stat.mtime.nanoseconds;
+    }
+
+    fn matchInManifest(manifest: *Manifest, path: Pathnames.Handle, stat: Io.File.Stat) Error!?Object {
+        if (try manifest.findPathname(path)) |found| {
+            if (objectMatches(found, stat))
+                return found;
+        }
+        if (try manifest.findINode(stat.inode)) |found| {
+            if (objectMatches(found, stat))
+                return found;
+        }
         return null;
     }
 
-    fn createObject(self: *Self, item: fi.FileIteratorItem) !Object {
-        if (try self.findByINode(item.entry.inode)) |obj|
-            return obj;
+    fn matchObject(self: *Self, path: Pathnames.Handle, stat: Io.File.Stat) Error!?Object {
+        for (self.search.items) |*manifest| {
+            if (try matchInManifest(manifest, path, stat)) |found|
+                return found;
+        }
+        return null;
+    }
+
+    fn createObject(self: *Self, item: fi.FileIteratorItem) Error!Object {
+        if (try self.manifest.findINode(item.entry.inode)) |found| {
+            var object = found;
+            object.path = item.entry.path;
+            return object;
+        }
+
         const name = self.pathnames.int.get(item.entry.name);
         const file = try item.dir.openFile(self.io, name, .{ .mode = .read_only });
         defer file.close(self.io);
 
         const stat = try file.stat(self.io);
-        const hash = try sha256File(self.io, file);
+
+        const hash = blk: {
+            if (try self.matchObject(item.entry.path, stat)) |found|
+                break :blk found.hash;
+
+            const sha256 = try sha256File(self.io, file);
+            print("  {x:0>64} {f}\n", .{ sha256, self.fmtPath(item.entry.path) });
+
+            break :blk sha256;
+        };
 
         return .{
             .path = item.entry.path,
@@ -93,7 +127,7 @@ pub const Scan = struct {
         };
     }
 
-    pub fn scan(self: *Self, dir: Io.Dir) !void {
+    pub fn scan(self: *Self, dir: Io.Dir) Error!void {
         const Context = struct {
             fn isManifest(name: []const u8) bool {
                 return std.mem.startsWith(u8, name, "MANIFEST.") and
@@ -119,10 +153,17 @@ pub const Scan = struct {
         defer scanner.deinit();
 
         while (try scanner.next()) |item| {
-            if (item.entry.kind == .file) {
-                const obj = try self.createObject(item);
-                try self.manifest.append(obj);
-                print("{x:0>64} {f}\n", .{ obj.hash, self.fmtPath(item.entry.path) });
+            switch (item.entry.kind) {
+                .file => {
+                    const obj = try self.createObject(item);
+                    try self.manifest.append(obj);
+                },
+                .directory => {
+                    print("Scanning {f}\n", .{self.fmtPath(item.entry.path)});
+                },
+                else => |kind| {
+                    print("  Skipping {s} {f}\n", .{ @tagName(kind), self.fmtPath(item.entry.path) });
+                },
             }
         }
     }
