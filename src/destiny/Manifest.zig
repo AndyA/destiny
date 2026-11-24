@@ -343,3 +343,62 @@ pub fn writeJson(self: Manifest, writer: *Io.Writer) WriteJsonError!void {
         try writer.writeByte('\n');
     }
 }
+
+const ParserError = std.fmt.ParseIntError || Allocator.Error;
+
+const ParserContext = struct {
+    indexer: PathIndexer,
+};
+
+fn pathParser(comptime name: []const u8) type {
+    return struct {
+        pub fn parseField(ctx: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+            @field(object, name) = try ctx.indexer.index(field);
+        }
+    };
+}
+fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
+    const info = @typeInfo(@FieldType(Object, name));
+    return switch (info) {
+        .int => |I| struct {
+            pub fn parseField(_: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+                @field(object, name) = try std.fmt.parseInt(I, field, base);
+            }
+        },
+        .@"enum" => |E| struct {
+            pub fn parseField(_: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+                @field(object, name) = @fromBackingInt(try std.fmt.parseInt(E.tag_type, field, base));
+            }
+        },
+        else => @compileError("intParser can't parse a " ++ @tagName(info)),
+    };
+}
+
+fn timeParser(comptime name: []const u8) type {
+    return struct {
+        pub fn parseField(_: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+            @field(object, name) = .fromNanoseconds(
+                try std.fmt.parseInt(@FieldType(Io.Timestamp, "nanoseconds"), field, 10),
+            );
+        }
+    };
+}
+
+const parsers = .{
+    .path = pathParser("path"),
+    .inode = intParser("inode", 10),
+    .size = intParser("size", 10),
+    .perms = intParser("permissions", 8),
+    .mtime = timeParser("mtime"),
+    .hash = intParser("hash", 16),
+};
+
+pub fn readJson(self: *Manifest, reader: *Io.Reader) !void {
+    const arena: std.heap.ArenaAllocator = .init(self.allocator);
+    defer arena.deinit();
+    _ = reader;
+}
+
+test {
+    print("Parsers: {any}\n", .{parsers});
+}
