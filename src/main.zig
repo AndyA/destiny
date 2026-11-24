@@ -1,4 +1,6 @@
 const std = @import("std");
+const cli = @import("cli");
+
 const Io = std.Io;
 const assert = std.debug.assert;
 const print = std.debug.print;

@@ -33,7 +33,7 @@ Create or update one or more MANIFESTs. When multiple directories / manifests ar
 | `--use <dir/manifest>` | Additional place to look for matches; may be specified multiple times |
 | `--use-nested`         | Add any nested manifests we find to the search path                   |
 | `--no-mtime`           | Ignore mtime when matching (default: `--mtime`)                       |
-| `--no-perms`           | Ignore permissions when matching (default: `--permss`)                |
+| `--no-perms`           | Ignore permissions when matching (default: `--perms`)                 |
 
 ## `destiny link [link options] <dir/manifest>...`
 
