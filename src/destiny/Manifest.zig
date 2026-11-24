@@ -344,15 +344,15 @@ pub fn writeJson(self: Manifest, writer: *Io.Writer) WriteJsonError!void {
     }
 }
 
-const ParserError = std.fmt.ParseIntError || Allocator.Error;
+const ParserError = std.fmt.ParseIntError || Allocator.Error || error.SyntaxError;
 
 const ParserContext = struct {
-    indexer: PathIndexer,
+    indexer: *PathIndexer,
 };
 
 fn pathParser(comptime name: []const u8) type {
     return struct {
-        pub fn parseField(ctx: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+        pub fn parseField(ctx: ParserContext, object: *Object, field: []const u8) ParserError!void {
             @field(object, name) = try ctx.indexer.index(field);
         }
     };
@@ -361,13 +361,15 @@ fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
     const info = @typeInfo(@FieldType(Object, name));
     return switch (info) {
         .int => |I| struct {
-            pub fn parseField(_: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParserError!void {
                 @field(object, name) = try std.fmt.parseInt(I, field, base);
             }
         },
         .@"enum" => |E| struct {
             pub fn parseField(_: *ParserContext, object: *Object, field: []const u8) ParserError!void {
-                @field(object, name) = @fromBackingInt(try std.fmt.parseInt(E.tag_type, field, base));
+                @field(object, name) = @fromBackingInt(
+                    try std.fmt.parseInt(E.tag_type, field, base),
+                );
             }
         },
         else => @compileError("intParser can't parse a " ++ @tagName(info)),
@@ -376,7 +378,7 @@ fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
 
 fn timeParser(comptime name: []const u8) type {
     return struct {
-        pub fn parseField(_: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+        pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParserError!void {
             @field(object, name) = .fromNanoseconds(
                 try std.fmt.parseInt(@FieldType(Io.Timestamp, "nanoseconds"), field, 10),
             );
@@ -393,12 +395,80 @@ const parsers = .{
     .hash = intParser("hash", 16),
 };
 
-pub fn readJson(self: *Manifest, reader: *Io.Reader) !void {
-    const arena: std.heap.ArenaAllocator = .init(self.allocator);
-    defer arena.deinit();
-    _ = reader;
+fn freeToken(gpa: Allocator, tok: std.json.Token) void {
+    switch (tok) {
+        .allocated_number, .allocated_string => |s| gpa.free(s),
+        else => {},
+    }
 }
 
-test {
+pub fn readJson(self: *Manifest, io_reader: *Io.Reader) !void {
+    const arena: std.heap.ArenaAllocator = .init(self.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var indexer: PathIndexer = .init(gpa, self.pathnames);
+    defer indexer.deinit();
+
+    while (true) {
+        var reader: std.json.Scanner.Reader = .init(gpa, io_reader);
+        defer reader.deinit();
+
+        const ctx: ParserContext = .{ .indexer = &indexer };
+        var object: Object = undefined;
+        object.kind = Io.File.Kind.file;
+
+        if (try reader.next() != .object_begin)
+            return error.SyntaxError;
+
+        obj: while (true) {
+            const key_token = try reader.nextAlloc(gpa, .alloc_if_needed);
+            defer freeToken(gpa, key_token);
+            switch (key_token) {
+                .object_end => break :obj,
+                .string, .allocated_string => |field| {
+                    const info = @typeInfo(@TypeOf(parsers)).@"struct";
+                    inline for (info.field_names) |name| {
+                        if (std.mem.eql(u8, field, name)) {
+                            const FT = @field(parsers, field);
+                            const value_token = try reader.nextAlloc(gpa, .alloc_if_needed);
+                            defer freeToken(gpa, value_token);
+                            try FT.parseField(ctx, &object, switch (value_token) {
+                                .string, .allocated_string => |str| str,
+                                else => unreachable,
+                            });
+                            continue :obj;
+                        }
+                    }
+                    return error.SyntaxError;
+                },
+                else => return error.SyntaxError,
+            }
+        }
+        if (try reader.next() != .end_of_document)
+            return error.SyntaxError;
+    }
+}
+
+test readJson {
+    const MANIFEST =
+        \\{
+        \\  "path": "README.md",
+        \\  "inode": "402466422",
+        \\  "size": "2369",
+        \\  "perms": "100644",
+        \\  "mtime": "1795524519002739982",
+        \\  "hash": "c826f07ee0aafb8838e1568559cc884b06cecc87a1077c5fc7a2023797d491b6"
+        \\}
+        \\{
+        \\  "path": "build.zig",
+        \\  "inode": "401462719",
+        \\  "size": "1019",
+        \\  "perms": "100644",
+        \\  "mtime": "1795015600704883478",
+        \\  "hash": "6cc053fb6616df0da2a4f43b3b5ef8dc4a075d37c7d1b4b77f7b056a4bfa8cec"
+        \\}
+    ;
+    _ = MANIFEST;
     print("Parsers: {any}\n", .{parsers});
 }
