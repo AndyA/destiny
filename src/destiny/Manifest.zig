@@ -344,7 +344,11 @@ pub fn writeJson(self: Manifest, writer: *Io.Writer) WriteJsonError!void {
     }
 }
 
-const ParserError = std.fmt.ParseIntError || Allocator.Error || error.SyntaxError;
+const ParseError = std.fmt.ParseIntError ||
+    std.json.Scanner.Reader.NextError ||
+    std.json.Scanner.Reader.AllocError ||
+    AppendError ||
+    error{SyntaxError};
 
 const ParserContext = struct {
     indexer: *PathIndexer,
@@ -352,21 +356,22 @@ const ParserContext = struct {
 
 fn pathParser(comptime name: []const u8) type {
     return struct {
-        pub fn parseField(ctx: ParserContext, object: *Object, field: []const u8) ParserError!void {
+        pub fn parseField(ctx: ParserContext, object: *Object, field: []const u8) ParseError!void {
             @field(object, name) = try ctx.indexer.index(field);
         }
     };
 }
 fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
-    const info = @typeInfo(@FieldType(Object, name));
+    const FT = @FieldType(Object, name);
+    const info = @typeInfo(FT);
     return switch (info) {
-        .int => |I| struct {
-            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParserError!void {
-                @field(object, name) = try std.fmt.parseInt(I, field, base);
+        .int => struct {
+            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParseError!void {
+                @field(object, name) = try std.fmt.parseInt(FT, field, base);
             }
         },
         .@"enum" => |E| struct {
-            pub fn parseField(_: *ParserContext, object: *Object, field: []const u8) ParserError!void {
+            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParseError!void {
                 @field(object, name) = @fromBackingInt(
                     try std.fmt.parseInt(E.tag_type, field, base),
                 );
@@ -378,7 +383,7 @@ fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
 
 fn timeParser(comptime name: []const u8) type {
     return struct {
-        pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParserError!void {
+        pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParseError!void {
             @field(object, name) = .fromNanoseconds(
                 try std.fmt.parseInt(@FieldType(Io.Timestamp, "nanoseconds"), field, 10),
             );
@@ -402,15 +407,15 @@ fn freeToken(gpa: Allocator, tok: std.json.Token) void {
     }
 }
 
-pub fn readJson(self: *Manifest, io_reader: *Io.Reader) !void {
-    const arena: std.heap.ArenaAllocator = .init(self.allocator);
+pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
+    var arena: std.heap.ArenaAllocator = .init(self.allocator);
     defer arena.deinit();
     const gpa = arena.allocator();
 
     var indexer: PathIndexer = .init(gpa, self.pathnames);
     defer indexer.deinit();
 
-    while (true) {
+    maf: while (true) {
         var reader: std.json.Scanner.Reader = .init(gpa, io_reader);
         defer reader.deinit();
 
@@ -418,7 +423,12 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) !void {
         var object: Object = undefined;
         object.kind = Io.File.Kind.file;
 
-        if (try reader.next() != .object_begin)
+        const tok = reader.next() catch |err| switch (err) {
+            error.UnexpectedEndOfInput => break :maf,
+            else => return err,
+        };
+
+        if (tok != .object_begin)
             return error.SyntaxError;
 
         obj: while (true) {
@@ -430,12 +440,12 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) !void {
                     const info = @typeInfo(@TypeOf(parsers)).@"struct";
                     inline for (info.field_names) |name| {
                         if (std.mem.eql(u8, field, name)) {
-                            const FT = @field(parsers, field);
+                            const Parser = @field(parsers, name);
                             const value_token = try reader.nextAlloc(gpa, .alloc_if_needed);
                             defer freeToken(gpa, value_token);
-                            try FT.parseField(ctx, &object, switch (value_token) {
+                            try Parser.parseField(ctx, &object, switch (value_token) {
                                 .string, .allocated_string => |str| str,
-                                else => unreachable,
+                                else => return error.SyntaxError,
                             });
                             continue :obj;
                         }
@@ -445,8 +455,9 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) !void {
                 else => return error.SyntaxError,
             }
         }
-        if (try reader.next() != .end_of_document)
-            return error.SyntaxError;
+
+        // TODO check we've populated all fields
+        try self.append(object);
     }
 }
 
@@ -469,6 +480,14 @@ test readJson {
         \\  "hash": "6cc053fb6616df0da2a4f43b3b5ef8dc4a075d37c7d1b4b77f7b056a4bfa8cec"
         \\}
     ;
-    _ = MANIFEST;
-    print("Parsers: {any}\n", .{parsers});
+
+    var int: Interned = try .init(std.testing.allocator);
+    defer int.deinit();
+    var paths: Pathnames = try .init(std.testing.allocator, &int);
+    defer paths.deinit();
+    var maf: Manifest = .init(std.testing.allocator, &paths);
+    defer maf.deinit();
+
+    var reader: Io.Reader = .fixed(MANIFEST);
+    try maf.readJson(&reader);
 }
