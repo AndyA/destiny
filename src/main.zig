@@ -7,11 +7,6 @@ const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 const Interned = @import("destiny/Interned.zig");
 const Pathnames = @import("destiny/Pathnames.zig");
-const PathWriter = @import("destiny/PathWriter.zig");
-const Manifest = @import("destiny/Manifest.zig");
-const Object = @import("destiny/Object.zig");
-const fi = @import("destiny/file_iterator.zig");
-const sha256File = @import("destiny/tools.zig").sha256File;
 
 test {
     _ = @import("destiny/Interned.zig");
@@ -22,172 +17,61 @@ test {
     _ = @import("destiny/file_iterator.zig");
 }
 
-pub const Scan = struct {
-    const Self = @This();
+const Commands = .{
+    .scan = @import("commands/Scan.zig"),
+};
 
-    pub const openOptions: Io.Dir.OpenOptions = .{
-        .follow_symlinks = false,
-        .iterate = true,
-    };
-
-    pub const Error = Manifest.AppendError ||
-        Io.File.StatError ||
-        Io.File.OpenError ||
-        Io.File.ReadStreamingError;
-
-    allocator: Allocator,
-    io: Io,
-    pathnames: *Pathnames,
-
-    manifest: Manifest,
-    path_writer: PathWriter,
-    search: std.ArrayList(Manifest) = .empty,
-
-    pub fn init(allocator: Allocator, io: Io, pathnames: *Pathnames) Self {
-        return .{
-            .allocator = allocator,
-            .io = io,
-            .pathnames = pathnames,
-            .manifest = .init(allocator, pathnames),
-            .path_writer = .init(allocator, pathnames),
-        };
+const subcommands = blk: {
+    const info = @typeInfo(@TypeOf(Commands)).@"struct";
+    const len = info.field_names.len;
+    var subs: [len]cli.Command = undefined;
+    for (info.field_names, &subs) |n, *slot| {
+        slot.* = @field(Commands, n).command;
     }
+    break :blk subs;
+};
 
-    pub fn deinitShallow(self: *Self) void {
-        self.manifest.deinit();
-        self.search.deinit(self.allocator);
-        self.path_writer.deinit();
-    }
-
-    pub fn deinit(self: *Self) void {
-        for (self.search.items) |*item|
-            item.deinit();
-        self.deinitShallow();
-    }
-
-    fn fmtPath(self: *Self, path: Pathnames.Handle) PathWriter.Fmt {
-        return self.path_writer.fmt(path);
-    }
-
-    fn objectMatches(object: Object, stat: Io.File.Stat) bool {
-        return object.size == stat.size and
-            object.permissions == stat.permissions and
-            object.mtime.nanoseconds == stat.mtime.nanoseconds;
-    }
-
-    fn matchInManifest(
-        manifest: *Manifest,
-        path: Pathnames.Handle,
-        stat: Io.File.Stat,
-    ) Error!?Object {
-        if (try manifest.findPathname(path)) |found| {
-            if (objectMatches(found, stat))
-                return found;
-        }
-        if (try manifest.findINode(stat.inode)) |found| {
-            if (objectMatches(found, stat))
-                return found;
-        }
-        return null;
-    }
-
-    fn matchObject(self: *Self, path: Pathnames.Handle, stat: Io.File.Stat) Error!?Object {
-        for (self.search.items) |*manifest| {
-            if (try matchInManifest(manifest, path, stat)) |found|
-                return found;
-        }
-        return null;
-    }
-
-    fn createObject(self: *Self, item: fi.FileIteratorItem) Error!Object {
-        if (try self.manifest.findINode(item.entry.inode)) |found| {
-            var object = found;
-            object.path = item.entry.path;
-            return object;
-        }
-
-        const name = self.pathnames.int.get(item.entry.name);
-        const file = try item.dir.openFile(self.io, name, .{ .mode = .read_only });
-        defer file.close(self.io);
-
-        const stat = try file.stat(self.io);
-
-        const hash = blk: {
-            if (try self.matchObject(item.entry.path, stat)) |found|
-                break :blk found.hash;
-
-            const sha256 = try sha256File(self.io, file);
-            print("  {x:0>64} {f}\n", .{ sha256, self.fmtPath(item.entry.path) });
-
-            break :blk sha256;
-        };
-
-        return .{
-            .path = item.entry.path,
-            .inode = item.entry.inode,
-            .size = stat.size,
-            .permissions = stat.permissions,
-            .kind = item.entry.kind,
-            .mtime = stat.mtime,
-            .hash = hash,
-        };
-    }
-
-    fn isManifest(name: []const u8) bool {
-        return std.mem.startsWith(u8, name, "MANIFEST.") and
-            std.mem.endsWith(u8, name, ".json");
-    }
-
-    pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool {
-        if (name.len > 0 and name[0] == '.')
-            return false;
-        if (isManifest(name))
-            return false;
-        return true;
-    }
-
-    pub fn scan(self: *Self, dir: Io.Dir) Error!void {
-        var scanner: fi.FileIterator(Self, openOptions) = try .init(
-            self.allocator,
-            self.io,
-            self.pathnames,
-            dir,
-            self.*,
-            .{ .sorted = true },
-        );
-        defer scanner.deinit();
-
-        print("Scanning .\n", .{});
-        while (try scanner.next()) |item| {
-            switch (item.entry.kind) {
-                .file => try self.manifest.append(try self.createObject(item)),
-                .directory => print("Scanning {f}\n", .{self.fmtPath(item.entry.path)}),
-                else => |kind| print(
-                    "  Skipping {s} {f}\n",
-                    .{ @tagName(kind), self.fmtPath(item.entry.path) },
-                ),
-            }
-        }
-    }
+const command: cli.Command = .{
+    .name = .destiny,
+    .subcommands = &subcommands,
 };
 
 pub fn main(init: std.process.Init) !void {
+    const parsed = try cli.parseAlloc(
+        command,
+        init.arena.allocator(),
+        try init.minimal.args.toSlice(init.arena.allocator()),
+        .{
+            .exit_usage_error = true,
+            .render_usage_errors = true,
+            .exit_help = true,
+            .render_help = .{ .generated = init.io },
+        },
+    );
+
     var int: Interned = try .init(init.gpa);
     defer int.deinit();
     var paths: Pathnames = try .init(init.gpa, &int);
     defer paths.deinit();
-    var pw: PathWriter = .init(init.gpa, &paths);
-    defer pw.deinit();
 
-    const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", Scan.openOptions);
-
-    var scan: Scan = .init(init.gpa, init.io, &paths);
-    defer scan.deinit();
-    try scan.scan(dir);
-
-    if (false) {
-        for (1..int.index.items.len) |h| {
-            print("{d:>3}: \"{s}\"\n", .{ h, int.get(@fromBackingInt(@as(u32, @intCast(h)))) });
+    if (parsed.subcommand) |subcommand| {
+        switch (subcommand) {
+            inline else => |args| {
+                const info = @typeInfo(@TypeOf(Commands)).@"struct";
+                const Command = @field(Commands, info.field_names[@backingInt(subcommand)]);
+                var handler: Command = .init(init.gpa, init.io, &paths, args);
+                defer handler.deinit();
+                try handler.run();
+            },
         }
+    } else {
+        print("No subcommand specified.\n", .{});
+        std.process.exit(1);
     }
+
+    // const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", Commands.scan.openOptions);
+
+    // var scan: Commands.scan = .init(init.gpa, init.io, &paths);
+    // defer scan.deinit();
+    // try scan.scan(dir);
 }

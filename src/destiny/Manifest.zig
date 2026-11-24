@@ -8,6 +8,7 @@ const HashMapUnmanaged = std.hash_map.HashMapUnmanaged;
 const Interned = @import("Interned.zig");
 const Pathnames = @import("Pathnames.zig");
 const PathIndexer = @import("PathIndexer.zig");
+const PathWriter = @import("PathWriter.zig");
 pub const Object = @import("Object.zig");
 
 const HandleInt = u32;
@@ -286,4 +287,49 @@ test Manifest {
 
     const tmp_found = try maf.findPathname(tmp_path);
     try std.testing.expectEqualDeep(tmp_obj, tmp_found);
+}
+
+pub const WriteJsonError = PathWriter.Error || Io.File.Writer.Error;
+
+fn printObjectField(
+    stringify: *std.json.Stringify,
+    writer: *Io.Writer,
+    name: []const u8,
+    comptime fmt: []const u8,
+    args: anytype,
+) WriteJsonError!void {
+    try stringify.objectField(name);
+    try stringify.beginWriteRaw();
+    try writer.writeByte('"');
+    try writer.print(fmt, args);
+    try writer.writeByte('"');
+    stringify.endWriteRaw();
+}
+
+pub fn writeJson(self: Manifest, writer: *Io.Writer) WriteJsonError!void {
+    var pw: PathWriter = .init(self.allocator, self.pathnames);
+    defer pw.deinit();
+    for (self.objects.items) |object| {
+        var stringify: std.json.Stringify = .{ .writer = writer };
+        try stringify.beginObject();
+        { // path
+            try stringify.objectField("path");
+            try stringify.beginWriteRaw();
+            try writer.writeByte('"');
+            try pw.writePathJson(writer, object.path);
+            try writer.writeByte('"');
+            stringify.endWriteRaw();
+        }
+        try printObjectField(&stringify, writer, "inode", "{d}", .{object.inode});
+        try printObjectField(&stringify, writer, "size", "{d}", .{object.size});
+        try printObjectField(&stringify, writer, "perms", "{o}", .{
+            @backingInt(object.permissions),
+        });
+        try printObjectField(&stringify, writer, "mtime", "{d}", .{
+            object.mtime.nanoseconds,
+        });
+        try printObjectField(&stringify, writer, "hash", "{x:0>64}", .{object.hash});
+        try stringify.endObject();
+        try writer.writeByte('\n');
+    }
 }

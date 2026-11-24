@@ -9,7 +9,7 @@ const Pathnames = @import("Pathnames.zig");
 const PathIndexer = @import("PathIndexer.zig");
 
 const PathWriter = @This();
-const Error = error{WriteFailed} || Allocator.Error;
+pub const Error = error{WriteFailed} || Allocator.Error;
 
 pub const Fmt = struct {
     pw: *PathWriter,
@@ -33,7 +33,7 @@ pub fn deinit(self: *PathWriter) void {
     self.path_buf.deinit(self.allocator);
 }
 
-pub fn writePath(self: *PathWriter, writer: *Io.Writer, path: Pathnames.Handle) Error!void {
+fn buildPath(self: *PathWriter, path: Pathnames.Handle) Error!void {
     var current = path;
     self.path_buf.items.len = 0;
     while (current != Pathnames.ROOT) {
@@ -41,10 +41,26 @@ pub fn writePath(self: *PathWriter, writer: *Io.Writer, path: Pathnames.Handle) 
         try self.path_buf.append(self.allocator, elt.name);
         current = elt.parent;
     }
+}
+
+pub fn writePath(self: *PathWriter, writer: *Io.Writer, path: Pathnames.Handle) Error!void {
+    try self.buildPath(path);
     var pos = self.path_buf.items.len;
     while (pos != 0) {
         pos -= 1;
         try writer.writeAll(self.pathnames.int.get(self.path_buf.items[pos]));
+        if (pos != 0)
+            try writer.writeByte('/');
+    }
+}
+
+pub fn writePathJson(self: *PathWriter, writer: *Io.Writer, path: Pathnames.Handle) Error!void {
+    try self.buildPath(path);
+    var pos = self.path_buf.items.len;
+    while (pos != 0) {
+        pos -= 1;
+        const elt = self.pathnames.int.get(self.path_buf.items[pos]);
+        try std.json.Stringify.encodeJsonStringChars(elt, .{}, writer);
         if (pos != 0)
             try writer.writeByte('/');
     }

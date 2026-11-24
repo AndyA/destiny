@@ -90,7 +90,8 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             defer self.stack.items.len -= 1;
             const frame = self.stack.items[self.stack.items.len - 1];
             self.dir_buf.items.len = frame.dir_limit;
-            frame.dir.close(self.io);
+            if (self.stack.items.len > 1)
+                frame.dir.close(self.io);
         }
 
         fn topOfStack(self: *const Self) ?*Frame {
