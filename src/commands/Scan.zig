@@ -28,7 +28,8 @@ pub const Error = Manifest.AppendError ||
     Io.File.OpenError ||
     Io.File.ReadStreamingError ||
     Io.File.Writer.Error ||
-    Io.Dir.RenameError;
+    Io.Dir.RenameError ||
+    Io.Dir.DeleteFileError;
 
 allocator: Allocator,
 io: Io,
@@ -231,6 +232,11 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 
     print("Saving {s}\n", .{"MANIFEST.json"});
     try self.saveManifest(manifest, dir, "MANIFEST.json");
+
+    dir.deleteFile(self.io, "MANIFEST.PARTIAL.json") catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => return err,
+    };
 }
 
 pub fn run(self: *Self) !void {
