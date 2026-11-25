@@ -226,7 +226,7 @@ fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
                 const elt: Pathnames.PathElement = self.pathnames.get(item.entry.path);
                 const name = self.pathnames.int.get(elt.name);
                 if (isManifest(name)) {
-                    std.log.info("Adding to search path: \"{f}\"", .{self.fmtPath(item.entry.path)});
+                    std.log.info("Adding \"{f}\" to search path", .{self.fmtPath(item.entry.path)});
                     try self.addToSearch(item.dir, name, elt.parent);
                 }
             },
