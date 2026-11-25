@@ -152,13 +152,6 @@ fn addToSearch(self: *Self, dir: Io.Dir, name: []const u8, root: Pathnames.Handl
     try self.search.append(self.allocator, manifest);
 }
 
-fn maybeAddToSearch(self: *Self, dir: Io.Dir, name: []const u8, root: Pathnames.Handle) Error!void {
-    self.addToSearch(dir, name, root) catch |err| switch (err) {
-        error.FileNotFound => return,
-        else => return err,
-    };
-}
-
 fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
     const args = self.args.kind.args;
     var iter: fi.FileIterator(Self, openOptions) = try .init(
@@ -216,13 +209,14 @@ fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
             return true;
         }
     };
+
     var iter: fi.FileIterator(Context, openOptions) = try .init(
         self.allocator,
         self.io,
         self.pathnames,
         dir,
         .{},
-        .{ .max_depth = args.@"max-nested-depth" orelse std.math.maxInt(usize) },
+        .{ .max_depth = args.@"max-depth" },
     );
     defer iter.deinit();
 
@@ -231,8 +225,8 @@ fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
             .file => {
                 const elt: Pathnames.PathElement = self.pathnames.get(item.entry.path);
                 const name = self.pathnames.int.get(elt.name);
-                if (elt.parent != Pathnames.ROOT and isManifest(name)) {
-                    std.log.info("Adding {f} to search path", .{self.fmtPath(item.entry.path)});
+                if (isManifest(name)) {
+                    std.log.info("Adding to search path: \"{f}\"", .{self.fmtPath(item.entry.path)});
                     try self.addToSearch(item.dir, name, elt.parent);
                 }
             },
@@ -242,8 +236,6 @@ fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
 }
 
 pub fn scan(self: *Self, root: []const u8) Error!void {
-    const args = self.args.kind.args;
-
     const dir: Io.Dir = blk: {
         if (std.fs.path.isAbsolute(root))
             break :blk try Io.Dir.openDirAbsolute(self.io, root, openOptions);
@@ -251,11 +243,7 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
     };
     defer dir.close(self.io);
 
-    if (args.@"use-nested")
-        try self.scanNestedManifests(dir);
-
-    try self.maybeAddToSearch(dir, MANIFEST, Pathnames.ROOT);
-    try self.maybeAddToSearch(dir, SNAPSHOT, Pathnames.ROOT);
+    try self.scanNestedManifests(dir);
 
     var manifest: Manifest = .init(self.allocator, self.pathnames);
     defer manifest.deinit();
@@ -315,17 +303,12 @@ pub const command: cli.Command = .{
             .default_value = &.{},
             .short = 'u',
         }),
-        .init(.@"use-nested", bool, .{
-            .help = "Add any nested manifests we find to the search path.",
-            .default_value = false,
-            .short = 'n',
-        }),
-        .init(.@"max-nested-depth", ?usize, .{
-            .help = "Max directory depth when search for nested manifests.",
-            .default_value = null,
+        .init(.@"max-depth", usize, .{
+            .help = "Max directory depth when searching for existing manifests.",
+            .default_value = 1,
         }),
         .init(.snapshot, ?i64, .{
-            .help = "Enable partial snapshot every N seconds.",
+            .help = "Enable snapshot every N seconds.",
             .default_value = null,
         }),
     },
