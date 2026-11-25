@@ -16,6 +16,7 @@ const tools = @import("../destiny/tools.zig");
 
 const MANIFEST = "MANIFEST.json";
 const SNAPSHOT = "MANIFEST.SNAPSHOT.json";
+const SNAPSHOT_SECONDS = 10;
 const MAX_SNAPSHOT_TIME_DENOMINATOR = 20;
 
 const Self = @This();
@@ -179,9 +180,9 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
             ),
         }
-        if (args.snapshot) |snap| {
+        if (args.snapshot) {
             const delay: Io.Duration = blk: {
-                const base: Io.Duration = .fromSeconds(snap);
+                const base: Io.Duration = .fromSeconds(SNAPSHOT_SECONDS);
                 if (smoother.current) |current| {
                     if (current * MAX_SNAPSHOT_TIME_DENOMINATOR > base.nanoseconds)
                         break :blk .fromNanoseconds(current * MAX_SNAPSHOT_TIME_DENOMINATOR);
@@ -307,9 +308,9 @@ pub const command: cli.Command = .{
             .help = "Max directory depth when searching for existing manifests.",
             .default_value = 1,
         }),
-        .init(.snapshot, ?i64, .{
-            .help = "Enable snapshot every N seconds.",
-            .default_value = null,
+        .init(.snapshot, bool, .{
+            .help = "Snapshot progress every 10 seconds.",
+            .default_value = false,
         }),
     },
 };
