@@ -173,9 +173,9 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
                 if (try self.createObject(manifest, item)) |object|
                     try manifest.append(object);
             },
-            .directory => std.log.info("Scanning {f}", .{self.fmtPath(item.entry.path)}),
+            .directory => std.log.info("Scanning \"{f}\"", .{self.fmtPath(item.entry.path)}),
             else => |kind| std.log.info(
-                "  Skipping {s} {f}",
+                "  Skipping {s} \"{f}\"",
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
             ),
         }
@@ -250,7 +250,7 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 
     try self.scanDir(&manifest, dir);
 
-    std.log.info("Saving {s}", .{MANIFEST});
+    std.log.info("Saving \"{s}\"", .{MANIFEST});
     try manifest.save(self.io, dir, MANIFEST);
 
     dir.deleteFile(self.io, SNAPSHOT) catch |err| switch (err) {
