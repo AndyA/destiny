@@ -216,7 +216,7 @@ fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
         self.pathnames,
         dir,
         .{},
-        .{ .max_depth = args.@"max-depth" },
+        .{ .max_depth = args.@"search-depth" },
     );
     defer iter.deinit();
 
@@ -303,7 +303,7 @@ pub const command: cli.Command = .{
             .default_value = &.{},
             .short = 'u',
         }),
-        .init(.@"max-depth", usize, .{
+        .init(.@"search-depth", usize, .{
             .help = "Max directory depth when searching for existing manifests.",
             .default_value = 1,
         }),
