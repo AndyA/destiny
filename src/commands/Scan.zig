@@ -13,6 +13,10 @@ const Object = @import("../destiny/Object.zig");
 const fi = @import("../destiny/file_iterator.zig");
 const sha256File = @import("../destiny/tools.zig").sha256File;
 
+const MANIFEST = "MANIFEST.json";
+const PARTIAL = "MANIFEST.PARTIAL.json";
+const SNAPSHOT = "MANIFEST.SNAPSHOT.json";
+
 const Self = @This();
 const Args = cli.Parsed(command);
 
@@ -186,7 +190,7 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
             const deadline = snapshot_time.addDuration(.fromSeconds(snap));
             const now: std.Io.Timestamp = .now(self.io, .awake);
             if (now.nanoseconds >= deadline.nanoseconds) {
-                try manifest.save(self.io, dir, "MANIFEST.PARTIAL.json");
+                try manifest.save(self.io, dir, SNAPSHOT);
                 snapshot_time = now;
             }
         }
@@ -240,18 +244,23 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
     if (args.@"use-nested")
         try self.scanNestedManifests(dir);
 
-    try self.maybeAddToSearch(dir, "MANIFEST.json", Pathnames.ROOT);
-    try self.maybeAddToSearch(dir, "MANIFEST.PARTIAL.json", Pathnames.ROOT);
+    try self.maybeAddToSearch(dir, MANIFEST, Pathnames.ROOT);
+    try self.maybeAddToSearch(dir, PARTIAL, Pathnames.ROOT);
+    try self.maybeAddToSearch(dir, SNAPSHOT, Pathnames.ROOT);
 
     var manifest: Manifest = .init(self.allocator, self.pathnames);
     defer manifest.deinit();
 
     try self.scanDir(&manifest, dir);
 
-    std.log.info("Saving {s}", .{"MANIFEST.json"});
-    try manifest.save(self.io, dir, "MANIFEST.json");
+    std.log.info("Saving {s}", .{MANIFEST});
+    try manifest.save(self.io, dir, MANIFEST);
 
-    dir.deleteFile(self.io, "MANIFEST.PARTIAL.json") catch |err| switch (err) {
+    dir.deleteFile(self.io, PARTIAL) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => return err,
+    };
+    dir.deleteFile(self.io, SNAPSHOT) catch |err| switch (err) {
         error.FileNotFound => {},
         else => return err,
     };
