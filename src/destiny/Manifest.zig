@@ -416,6 +416,7 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
     defer indexer.deinit();
 
     maf: while (true) {
+        print("start\n", .{});
         var reader: std.json.Scanner.Reader = .init(gpa, io_reader);
         defer reader.deinit();
 
@@ -427,6 +428,8 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
             error.UnexpectedEndOfInput => break :maf,
             else => return err,
         };
+
+        print("tok: {any}\n", .{tok});
 
         if (tok != .object_begin)
             return error.SyntaxError;
@@ -443,6 +446,7 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
                             const Parser = @field(parsers, name);
                             const value_token = try reader.nextAlloc(gpa, .alloc_if_needed);
                             defer freeToken(gpa, value_token);
+                            print("got {s} {any}\n", .{ name, value_token });
                             try Parser.parseField(ctx, &object, switch (value_token) {
                                 .string, .allocated_string => |str| str,
                                 else => return error.SyntaxError,
@@ -456,7 +460,8 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
             }
         }
 
-        // print("row: {any}\n", .{object});
+        print("row: {any}\n", .{object});
+        print("reader: {any}\n", .{reader});
 
         // TODO check we've populated all fields
         try self.append(object);
@@ -480,6 +485,14 @@ test readJson {
         \\  "perms": "100644",
         \\  "mtime": "1795015600704883478",
         \\  "hash": "6cc053fb6616df0da2a4f43b3b5ef8dc4a075d37c7d1b4b77f7b056a4bfa8cec"
+        \\}
+        \\{
+        \\  "path": "build.zig.zon",
+        \\  "inode": "401462720",
+        \\  "size": "522",
+        \\  "perms": "100644",
+        \\  "mtime": "1795015386347382301",
+        \\  "hash": "aa9bc9cc6a350224b1206040d5c361ca38c53ff80527b7c457ba2fe48283afaf"
         \\}
     ;
 
