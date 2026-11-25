@@ -12,7 +12,7 @@ const Manifest = @import("../destiny/Manifest.zig");
 const Object = @import("../destiny/Object.zig");
 const fi = @import("../destiny/file_iterator.zig");
 const Smoother = @import("../destiny/smoother.zig").Smoother;
-const sha256File = @import("../destiny/tools.zig").sha256File;
+const tools = @import("../destiny/tools.zig");
 
 const MANIFEST = "MANIFEST.json";
 const SNAPSHOT = "MANIFEST.SNAPSHOT.json";
@@ -31,6 +31,7 @@ pub const Error = Manifest.AppendError ||
     Manifest.SaveError ||
     fi.FileIteratorError ||
     Io.File.StatError ||
+    Io.File.ReadStreamingError ||
     Io.Dir.DeleteFileError;
 
 allocator: Allocator,
@@ -114,7 +115,7 @@ fn createObject(self: *Self, manifest: *Manifest, item: fi.FileIteratorItem) Err
         if (try self.matchObject(item.entry.path, stat)) |found|
             break :blk found.hash;
 
-        const sha256 = try sha256File(self.io, file);
+        const sha256 = try tools.sha256File(self.io, file);
         std.log.info("  {x:0>64} {f}", .{ sha256, self.fmtPath(item.entry.path) });
 
         break :blk sha256;

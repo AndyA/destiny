@@ -17,16 +17,16 @@ test {
     _ = @import("destiny/file_iterator.zig");
 }
 
-const Commands = .{
+const command_handlers = .{
     .scan = @import("commands/Scan.zig"),
 };
 
 const subcommands = blk: {
-    const info = @typeInfo(@TypeOf(Commands)).@"struct";
+    const info = @typeInfo(@TypeOf(command_handlers)).@"struct";
     const len = info.field_names.len;
     var subs: [len]cli.Command = undefined;
-    for (info.field_names, &subs) |n, *slot| {
-        slot.* = @field(Commands, n).command;
+    for (info.field_names, &subs) |name, *slot| {
+        slot.* = @field(command_handlers, name).command;
     }
     break :blk subs;
 };
@@ -57,8 +57,8 @@ pub fn main(init: std.process.Init) !void {
     if (parsed.subcommand) |subcommand| {
         switch (subcommand) {
             inline else => |args| {
-                const info = @typeInfo(@TypeOf(Commands)).@"struct";
-                const Command = @field(Commands, info.field_names[@backingInt(subcommand)]);
+                const info = @typeInfo(@TypeOf(command_handlers)).@"struct";
+                const Command = @field(command_handlers, info.field_names[@backingInt(subcommand)]);
                 var handler: Command = .init(init.gpa, init.io, &paths, args);
                 defer handler.deinit();
                 try handler.run();
@@ -68,10 +68,4 @@ pub fn main(init: std.process.Init) !void {
         print("No subcommand specified.\n", .{});
         std.process.exit(1);
     }
-
-    // const dir = try Io.Dir.openDir(Io.Dir.cwd(), init.io, ".", Commands.scan.openOptions);
-
-    // var scan: Commands.scan = .init(init.gpa, init.io, &paths);
-    // defer scan.deinit();
-    // try scan.scan(dir);
 }
