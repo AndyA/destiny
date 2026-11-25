@@ -307,10 +307,12 @@ pub const command: cli.Command = .{
         .init(.@"search-depth", usize, .{
             .help = "Max directory depth when searching for existing manifests.",
             .default_value = 1,
+            .short = 'd',
         }),
         .init(.snapshot, bool, .{
             .help = "Snapshot progress every 10 seconds.",
             .default_value = false,
+            .short = 's',
         }),
     },
 };
