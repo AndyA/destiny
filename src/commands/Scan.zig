@@ -14,7 +14,6 @@ const fi = @import("../destiny/file_iterator.zig");
 const sha256File = @import("../destiny/tools.zig").sha256File;
 
 const MANIFEST = "MANIFEST.json";
-const PARTIAL = "MANIFEST.PARTIAL.json";
 const SNAPSHOT = "MANIFEST.SNAPSHOT.json";
 
 const Self = @This();
@@ -245,7 +244,6 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
         try self.scanNestedManifests(dir);
 
     try self.maybeAddToSearch(dir, MANIFEST, Pathnames.ROOT);
-    try self.maybeAddToSearch(dir, PARTIAL, Pathnames.ROOT);
     try self.maybeAddToSearch(dir, SNAPSHOT, Pathnames.ROOT);
 
     var manifest: Manifest = .init(self.allocator, self.pathnames);
@@ -256,10 +254,6 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
     std.log.info("Saving {s}", .{MANIFEST});
     try manifest.save(self.io, dir, MANIFEST);
 
-    dir.deleteFile(self.io, PARTIAL) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => return err,
-    };
     dir.deleteFile(self.io, SNAPSHOT) catch |err| switch (err) {
         error.FileNotFound => {},
         else => return err,
