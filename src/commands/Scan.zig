@@ -218,6 +218,7 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
         }
     }
 
+    print("Saving {s}\n", .{"MANIFEST.json"});
     try self.saveManifest(manifest, dir, "MANIFEST.json");
 }
 
