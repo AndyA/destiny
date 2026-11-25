@@ -456,6 +456,8 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
             }
         }
 
+        // print("row: {any}\n", .{object});
+
         // TODO check we've populated all fields
         try self.append(object);
     }
