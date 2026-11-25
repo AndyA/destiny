@@ -65,7 +65,7 @@ pub fn main(init: std.process.Init) !void {
             },
         }
     } else {
-        print("No subcommand specified.\n", .{});
+        std.log.err("No subcommand specified.", .{});
         std.process.exit(1);
     }
 }

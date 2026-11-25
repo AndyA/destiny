@@ -11,9 +11,9 @@
 {"path":"src/destiny/file_iterator.zig","inode":"629130922","size":"7688","perms":"100644","mtime":"1795627712210869592","hash":"85f776f577717431ce51153b641b076b7dfb2f9add5cdc1839a40d74851b2c56"}
 {"path":"src/destiny/smoother.zig","inode":"629136032","size":"728","perms":"100644","mtime":"1795632347671099112","hash":"6deff432af84ee13970de384a187d8c8e04d84c839edb629511532347da0c20a"}
 {"path":"src/destiny/tools.zig","inode":"628913048","size":"590","perms":"100644","mtime":"1795633052217693783","hash":"9888eb9df4b4201e4a4d70423c6c1f32a2bd60f5b4503e119cea3ee91e85e3ba"}
-{"path":"src/main.zig","inode":"629024562","size":"2128","perms":"100644","mtime":"1795633319973825393","hash":"5cbaef42e59d309f730a9a62ddd640f07e4cb191c71443baf7cd900e411cf378"}
+{"path":"src/main.zig","inode":"629024562","size":"2124","perms":"100644","mtime":"1795634805378258925","hash":"8cca6e8d20b945b6dee5e8d58bf647dfb0dcf04863ec00e6ae77b37df9bef072"}
 {"path":"src/mule.zig","inode":"629103666","size":"389","perms":"100644","mtime":"1795631554204237715","hash":"ecbbf5f0a82747a7629ff6bcc55cdb1570224902382deba606738b0ed07da36f"}
-{"path":"zig-out/bin/destiny","inode":"629138719","size":"526056","perms":"100755","mtime":"1795633326265931700","hash":"8c5518db6d0265cd59cf19684b740618d5796771bca65204f9809dcecb9b27cc"}
+{"path":"zig-out/bin/destiny","inode":"629140754","size":"526072","perms":"100755","mtime":"1795634811954531345","hash":"63067ec89b1e08dd35e43af167ec4d06cead651df2f6e67ae3724c95ee4b96b2"}
 {"path":"zig-out/bin/mule","inode":"629137327","size":"397144","perms":"100755","mtime":"1795632463488309278","hash":"db7a38572032b04a08e2038906d9b7651667393d66255a797257179f865398ce"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/LICENSE","inode":"627706762","size":"1067","perms":"100644","mtime":"1795020019222506818","hash":"667adbc5a624bc8a80b22e79e19c99c50998c796ba836e08f42b7febd436f465"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/build.zig","inode":"627706763","size":"1430","perms":"100644","mtime":"1795020019222653734","hash":"89ab02d77efc958a804dcd17fc330ea831aa4abc33c1863bcc8078cb0b97164b"}
