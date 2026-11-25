@@ -184,6 +184,7 @@ fn loadManifest(self: *const Self, manifest: *Manifest, dir: Io.Dir, name: []con
 }
 
 pub fn scan(self: *Self, root: []const u8) Error!void {
+    const args = self.args.kind.args;
     const dir: Io.Dir = blk: {
         if (std.fs.path.isAbsolute(root))
             break :blk try Io.Dir.openDirAbsolute(self.io, root, openOptions);
@@ -203,9 +204,11 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
         self.pathnames,
         dir,
         self.*,
-        .{ .sorted = self.args.kind.args.sort },
+        .{ .sorted = args.sort },
     );
     defer iter.deinit();
+
+    var snapshot_time: std.Io.Timestamp = .now(self.io, .awake);
 
     while (try iter.next()) |item| {
         switch (item.entry.kind) {
@@ -215,6 +218,14 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
                 "  Skipping {s} {f}\n",
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
             ),
+        }
+        if (args.snapshot) |snap| {
+            const deadline = snapshot_time.addDuration(.fromSeconds(snap));
+            const now: std.Io.Timestamp = .now(self.io, .awake);
+            if (now.nanoseconds >= deadline.nanoseconds) {
+                try self.saveManifest(manifest, dir, "MANIFEST.PARTIAL.json");
+                snapshot_time = now;
+            }
         }
     }
 
@@ -266,6 +277,14 @@ pub const command: cli.Command = .{
             .help = "Add any nested manifests we find to the search path.",
             .default_value = false,
             .short = 'n',
+        }),
+        .init(.@"max-nested-depth", ?usize, .{
+            .help = "Max directory depth when search for nested manifests.",
+            .default_value = null,
+        }),
+        .init(.snapshot, ?i64, .{
+            .help = "Enable partial snapshot every N seconds.",
+            .default_value = null,
         }),
     },
 };

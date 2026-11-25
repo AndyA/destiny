@@ -2,6 +2,8 @@
 
 If a scan aborts with a FS error save the partial MANIFEST as `MANIFEST.PARTIAL.json`.
 
+Also save partial manifest periodically.
+
 Paths in nested manifests can match in two ways
 
 - relative to themselves
