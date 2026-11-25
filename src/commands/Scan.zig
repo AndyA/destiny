@@ -265,7 +265,7 @@ pub fn run(self: *Self) !void {
         try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);
     }
     for (args.root) |root| {
-        std.log.info("Scanning {s}", .{root});
+        std.log.info("Scanning \"{s}\"", .{root});
         try self.scan(root);
     }
 }
