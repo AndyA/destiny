@@ -19,11 +19,11 @@ pub const FileIteratorItem = struct {
     dir: Io.Dir,
 };
 
+pub const FileIteratorError = Allocator.Error || Io.Dir.Reader.Error || Io.Dir.OpenError;
+
 pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOptions) type {
     return struct {
         const Self = @This();
-
-        pub const Error = Allocator.Error || Io.Dir.Reader.Error || Io.Dir.OpenError;
 
         const Frame = struct {
             path: Pathnames.Handle,
@@ -100,7 +100,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             return &self.stack.items[self.stack.items.len - 1];
         }
 
-        fn descend(self: *Self, tos: *const Frame, item: FileIteratorItem) Error!void {
+        fn descend(self: *Self, tos: *const Frame, item: FileIteratorItem) FileIteratorError!void {
             if (self.stack.items.len < self.options.max_depth) {
                 const name = self.pathnames.int.get(item.entry.name);
                 const sub_dir = try tos.dir.openDir(self.io, name, openOptions);
@@ -136,7 +136,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         /// Iterate over a directory, interning names and paths and appending the
         /// resulting entries to `dir_buf`. Previous items in `dir_buf` are
         /// unaffected (they belong to a parent directory).
-        fn loadDir(self: *Self, tos: *Frame) Error!void {
+        fn loadDir(self: *Self, tos: *Frame) FileIteratorError!void {
             assert(self.dir_buf.items.len == tos.dir_limit);
             while (try tos.iter.next(self.io)) |entry| {
                 const item = try self.makeIteratorItem(tos, entry);
@@ -164,7 +164,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             );
         }
 
-        fn nextSorted(self: *Self) Error!?FileIteratorItem {
+        fn nextSorted(self: *Self) FileIteratorError!?FileIteratorItem {
             while (true) {
                 if (self.topOfStack()) |tos| {
                     if (!tos.loaded) {
@@ -189,7 +189,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             }
         }
 
-        fn nextUnsorted(self: *Self) Error!?FileIteratorItem {
+        fn nextUnsorted(self: *Self) FileIteratorError!?FileIteratorItem {
             while (true) {
                 if (self.topOfStack()) |tos| {
                     if (try tos.iter.next(self.io)) |entry| {
@@ -207,7 +207,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
             }
         }
 
-        pub fn next(self: *Self) Error!?FileIteratorItem {
+        pub fn next(self: *Self) FileIteratorError!?FileIteratorItem {
             return switch (self.options.sorted) {
                 false => self.nextUnsorted(),
                 true => self.nextSorted(),

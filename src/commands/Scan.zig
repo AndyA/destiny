@@ -25,13 +25,10 @@ pub const openOptions: Io.Dir.OpenOptions = .{
 };
 
 pub const Error = Manifest.AppendError ||
-    Manifest.WriteJsonError ||
-    Manifest.ReadJsonError ||
+    Manifest.LoadError ||
+    Manifest.SaveError ||
+    fi.FileIteratorError ||
     Io.File.StatError ||
-    Io.File.OpenError ||
-    Io.File.ReadStreamingError ||
-    Io.File.Writer.Error ||
-    Io.Dir.RenameError ||
     Io.Dir.DeleteFileError;
 
 allocator: Allocator,
@@ -261,10 +258,11 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 }
 
 pub fn run(self: *Self) !void {
-    for (self.args.kind.args.use) |use| {
+    const args = self.args.kind.args;
+    for (args.use) |use| {
         try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);
     }
-    for (self.args.kind.args.root) |root| {
+    for (args.root) |root| {
         std.log.info("Scanning {s}", .{root});
         try self.scan(root);
     }

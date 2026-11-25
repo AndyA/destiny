@@ -516,7 +516,12 @@ test readJson {
     try maf.readJson(&reader);
 }
 
-pub fn save(self: Manifest, io: Io, dir: Io.Dir, name: []const u8) !void {
+pub const SaveError = Io.File.OpenError ||
+    Io.File.Writer.Error ||
+    WriteJsonError ||
+    Io.Dir.RenameError;
+
+pub fn save(self: Manifest, io: Io, dir: Io.Dir, name: []const u8) SaveError!void {
     const tmp_name = "tmp.MANIFEST.json";
     const m_file = try dir.createFile(io, tmp_name, .{});
     defer m_file.close(io);
@@ -527,13 +532,17 @@ pub fn save(self: Manifest, io: Io, dir: Io.Dir, name: []const u8) !void {
     try dir.rename(tmp_name, dir, name, io);
 }
 
+pub const LoadError = Io.File.OpenError ||
+    Io.File.Reader.Error ||
+    ReadJsonError;
+
 pub fn loadBelow(
     self: *Manifest,
     io: Io,
     dir: Io.Dir,
     name: []const u8,
     root: Pathnames.Handle,
-) !void {
+) LoadError!void {
     const m_file = blk: {
         if (std.fs.path.isAbsolute(name))
             break :blk try Io.Dir.openFileAbsolute(io, name, .{ .mode = .read_only });
@@ -545,6 +554,6 @@ pub fn loadBelow(
     try self.readJsonBelow(&reader.interface, root);
 }
 
-pub fn load(self: *Manifest, io: Io, dir: Io.Dir, name: []const u8) !void {
+pub fn load(self: *Manifest, io: Io, dir: Io.Dir, name: []const u8) LoadError!void {
     try self.loadBelow(self, io, dir, name, Pathnames.ROOT);
 }
