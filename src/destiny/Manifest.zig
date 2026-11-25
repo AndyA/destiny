@@ -400,6 +400,11 @@ const parsers = .{
     .hash = intParser("hash", 16),
 };
 
+const FieldMask = blk: {
+    const info = @typeInfo(@TypeOf(parsers)).@"struct";
+    break :blk @Int(.unsigned, info.field_names.len);
+};
+
 fn freeToken(gpa: Allocator, tok: std.json.Token) void {
     switch (tok) {
         .allocated_number, .allocated_string => |s| gpa.free(s),
@@ -414,13 +419,11 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
 
     var indexer: PathIndexer = .init(gpa, self.pathnames);
     defer indexer.deinit();
+    var reader: std.json.Scanner.Reader = .init(gpa, io_reader);
+    defer reader.deinit();
+    const ctx: ParserContext = .{ .indexer = &indexer };
 
     maf: while (true) {
-        print("start\n", .{});
-        var reader: std.json.Scanner.Reader = .init(gpa, io_reader);
-        defer reader.deinit();
-
-        const ctx: ParserContext = .{ .indexer = &indexer };
         var object: Object = undefined;
         object.kind = Io.File.Kind.file;
 
@@ -429,24 +432,28 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
             else => return err,
         };
 
-        print("tok: {any}\n", .{tok});
-
         if (tok != .object_begin)
             return error.SyntaxError;
+
+        var seen: FieldMask = 0;
 
         obj: while (true) {
             const key_token = try reader.nextAlloc(gpa, .alloc_if_needed);
             defer freeToken(gpa, key_token);
             switch (key_token) {
-                .object_end => break :obj,
+                .object_end => {
+                    // Restart the scanner for the next object
+                    reader.scanner.state = .value;
+                    break :obj;
+                },
                 .string, .allocated_string => |field| {
                     const info = @typeInfo(@TypeOf(parsers)).@"struct";
-                    inline for (info.field_names) |name| {
+                    inline for (info.field_names, 0..) |name, i| {
                         if (std.mem.eql(u8, field, name)) {
+                            seen |= 1 << @intCast(i);
                             const Parser = @field(parsers, name);
                             const value_token = try reader.nextAlloc(gpa, .alloc_if_needed);
                             defer freeToken(gpa, value_token);
-                            print("got {s} {any}\n", .{ name, value_token });
                             try Parser.parseField(ctx, &object, switch (value_token) {
                                 .string, .allocated_string => |str| str,
                                 else => return error.SyntaxError,
@@ -460,10 +467,9 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
             }
         }
 
-        print("row: {any}\n", .{object});
-        print("reader: {any}\n", .{reader});
+        if (seen != std.math.maxInt(FieldMask))
+            return error.SyntaxError;
 
-        // TODO check we've populated all fields
         try self.append(object);
     }
 }
