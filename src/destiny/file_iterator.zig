@@ -38,6 +38,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         pub const Options = struct {
             path: Pathnames.Handle = Pathnames.ROOT,
             sorted: bool = false,
+            max_depth: usize = std.math.maxInt(usize),
         };
 
         allocator: Allocator,
@@ -100,9 +101,11 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         }
 
         fn descend(self: *Self, tos: *const Frame, item: FileIteratorItem) Error!void {
-            const name = self.pathnames.int.get(item.entry.name);
-            const sub_dir = try tos.dir.openDir(self.io, name, openOptions);
-            try self.push(item.entry.path, sub_dir);
+            if (self.stack.items.len < self.options.max_depth) {
+                const name = self.pathnames.int.get(item.entry.name);
+                const sub_dir = try tos.dir.openDir(self.io, name, openOptions);
+                try self.push(item.entry.path, sub_dir);
+            }
         }
 
         fn shouldInclude(self: *const Self, item: FileIteratorItem) bool {

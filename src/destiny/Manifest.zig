@@ -344,7 +344,7 @@ pub fn writeJson(self: Manifest, writer: *Io.Writer) WriteJsonError!void {
     }
 }
 
-const ParseError = std.fmt.ParseIntError ||
+pub const ReadJsonError = std.fmt.ParseIntError ||
     std.json.Scanner.Reader.NextError ||
     std.json.Scanner.Reader.AllocError ||
     AppendError ||
@@ -356,7 +356,7 @@ const ParserContext = struct {
 
 fn pathParser(comptime name: []const u8) type {
     return struct {
-        pub fn parseField(ctx: ParserContext, object: *Object, field: []const u8) ParseError!void {
+        pub fn parseField(ctx: ParserContext, object: *Object, field: []const u8) ReadJsonError!void {
             @field(object, name) = try ctx.indexer.index(field);
         }
     };
@@ -366,12 +366,12 @@ fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
     const info = @typeInfo(FT);
     return switch (info) {
         .int => struct {
-            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParseError!void {
+            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ReadJsonError!void {
                 @field(object, name) = try std.fmt.parseInt(FT, field, base);
             }
         },
         .@"enum" => |E| struct {
-            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParseError!void {
+            pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ReadJsonError!void {
                 @field(object, name) = @fromBackingInt(
                     try std.fmt.parseInt(E.tag_type, field, base),
                 );
@@ -383,7 +383,7 @@ fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
 
 fn timeParser(comptime name: []const u8) type {
     return struct {
-        pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ParseError!void {
+        pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ReadJsonError!void {
             @field(object, name) = .fromNanoseconds(
                 try std.fmt.parseInt(@FieldType(Io.Timestamp, "nanoseconds"), field, 10),
             );
@@ -411,13 +411,12 @@ fn freeToken(gpa: Allocator, tok: std.json.Token) void {
         else => {},
     }
 }
-
-pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
+pub fn readJsonBelow(self: *Manifest, io_reader: *Io.Reader, root: Pathnames.Handle) ReadJsonError!void {
     var arena: std.heap.ArenaAllocator = .init(self.allocator);
     defer arena.deinit();
     const gpa = arena.allocator();
 
-    var indexer: PathIndexer = .init(gpa, self.pathnames);
+    var indexer: PathIndexer = .initBelow(gpa, self.pathnames, root);
     defer indexer.deinit();
     var reader: std.json.Scanner.Reader = .init(gpa, io_reader);
     defer reader.deinit();
@@ -474,6 +473,10 @@ pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ParseError!void {
     }
 }
 
+pub fn readJson(self: *Manifest, io_reader: *Io.Reader) ReadJsonError!void {
+    try self.readJsonBelow(io_reader, Pathnames.ROOT);
+}
+
 test readJson {
     const MANIFEST =
         \\{
@@ -485,12 +488,12 @@ test readJson {
         \\  "hash": "c826f07ee0aafb8838e1568559cc884b06cecc87a1077c5fc7a2023797d491b6"
         \\}
         \\{
-        \\  "path": "build.zig",
+        \\  "hash": "6cc053fb6616df0da2a4f43b3b5ef8dc4a075d37c7d1b4b77f7b056a4bfa8cec",
         \\  "inode": "401462719",
         \\  "size": "1019",
         \\  "perms": "100644",
         \\  "mtime": "1795015600704883478",
-        \\  "hash": "6cc053fb6616df0da2a4f43b3b5ef8dc4a075d37c7d1b4b77f7b056a4bfa8cec"
+        \\  "path": "build.zig"
         \\}
         \\{
         \\  "path": "build.zig.zon",

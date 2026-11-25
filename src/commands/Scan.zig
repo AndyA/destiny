@@ -23,6 +23,7 @@ pub const openOptions: Io.Dir.OpenOptions = .{
 
 pub const Error = Manifest.AppendError ||
     Manifest.WriteJsonError ||
+    Manifest.ReadJsonError ||
     Io.File.StatError ||
     Io.File.OpenError ||
     Io.File.ReadStreamingError ||
@@ -137,7 +138,7 @@ pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool 
     return true;
 }
 
-fn saveJson(self: *const Self, dir: Io.Dir, manifest: Manifest, name: []const u8) Error!void {
+fn saveManifest(self: *const Self, manifest: Manifest, dir: Io.Dir, name: []const u8) Error!void {
     const tmp_name = "tmp.MANIFEST.json";
     const m_file = try dir.createFile(self.io, tmp_name, .{});
     defer m_file.close(self.io);
@@ -146,6 +147,40 @@ fn saveJson(self: *const Self, dir: Io.Dir, manifest: Manifest, name: []const u8
     try manifest.writeJson(&writer.interface);
     try writer.flush();
     try dir.rename(tmp_name, dir, name, self.io);
+}
+
+fn loadManifestBelow(
+    self: *const Self,
+    manifest: *Manifest,
+    dir: Io.Dir,
+    name: []const u8,
+    root: Pathnames.Handle,
+) Error!void {
+    const m_file = try dir.openFile(self.io, name, .{ .mode = .read_only });
+    defer m_file.close(self.io);
+    var buf: [128 * 1024]u8 = undefined;
+    var reader = m_file.reader(self.io, &buf);
+    try manifest.readJsonBelow(&reader.interface, root);
+}
+
+fn addToSearch(self: *Self, dir: Io.Dir, name: []const u8, root: Pathnames.Handle) Error!void {
+    print("Loading {s}\n", .{name});
+    var manifest: Manifest = .init(self.allocator, self.pathnames);
+    errdefer manifest.deinit();
+    try self.loadManifestBelow(&manifest, dir, name, root);
+    try self.search.append(self.allocator, manifest);
+}
+
+fn maybeAddToSearch(self: *Self, dir: Io.Dir, name: []const u8, root: Pathnames.Handle) Error!void {
+    _ = dir.statFile(self.io, name, .{ .follow_symlinks = false }) catch |err| switch (err) {
+        error.FileNotFound => return,
+        else => return err,
+    };
+    try self.addToSearch(dir, name, root);
+}
+
+fn loadManifest(self: *const Self, manifest: *Manifest, dir: Io.Dir, name: []const u8) Error!void {
+    try self.loadManifestBelow(manifest, dir, name, Pathnames.ROOT);
 }
 
 pub fn scan(self: *Self, root: []const u8) Error!void {
@@ -159,7 +194,10 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
     var manifest: Manifest = .init(self.allocator, self.pathnames);
     defer manifest.deinit();
 
-    var scanner: fi.FileIterator(Self, openOptions) = try .init(
+    try self.maybeAddToSearch(dir, "MANIFEST.json", Pathnames.ROOT);
+    try self.maybeAddToSearch(dir, "MANIFEST.PARTIAL.json", Pathnames.ROOT);
+
+    var iter: fi.FileIterator(Self, openOptions) = try .init(
         self.allocator,
         self.io,
         self.pathnames,
@@ -167,9 +205,9 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
         self.*,
         .{ .sorted = self.args.kind.args.sort },
     );
-    defer scanner.deinit();
+    defer iter.deinit();
 
-    while (try scanner.next()) |item| {
+    while (try iter.next()) |item| {
         switch (item.entry.kind) {
             .file => try manifest.append(try self.createObject(&manifest, item)),
             .directory => print("Scanning {s}/{f}\n", .{ root, self.fmtPath(item.entry.path) }),
@@ -180,7 +218,7 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
         }
     }
 
-    try self.saveJson(dir, manifest, "MANIFEST.json");
+    try self.saveManifest(manifest, dir, "MANIFEST.json");
 }
 
 pub fn run(self: *Self) !void {
