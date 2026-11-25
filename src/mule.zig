@@ -3,24 +3,12 @@ const Io = std.Io;
 const print = std.debug.print;
 const assert = std.debug.assert;
 
-const JSON =
-    \\{}{}
-;
+const Smoother = @import("destiny/smoother.zig").Smoother;
 
 pub fn main(init: std.process.Init) !void {
-    var io_reader: Io.Reader = .fixed(JSON);
-    var reader: std.json.Scanner.Reader = .init(init.gpa, &io_reader);
-    defer reader.deinit();
-    print("state: {s}\n", .{@tagName(reader.scanner.state)});
-
-    obj: while (true) {
-        const tok = reader.nextAlloc(init.arena.allocator(), .alloc_if_needed) catch |err| switch (err) {
-            error.UnexpectedEndOfInput => break :obj,
-            else => return err,
-        };
-        print("token: {any} ({s})\n", .{ tok, @tagName(reader.scanner.state) });
-        if (tok == .object_end) {
-            reader.scanner.state = .value;
-        }
+    _ = init;
+    var smoo: Smoother(u64, 15, 1) = .empty;
+    for (0..10) |i| {
+        print("{d:>3}: {d:>8}\n", .{ i, smoo.update(if (i == 0) 0 else 100_000) });
     }
 }

@@ -11,10 +11,12 @@ const PathWriter = @import("../destiny/PathWriter.zig");
 const Manifest = @import("../destiny/Manifest.zig");
 const Object = @import("../destiny/Object.zig");
 const fi = @import("../destiny/file_iterator.zig");
+const Smoother = @import("../destiny/smoother.zig").Smoother;
 const sha256File = @import("../destiny/tools.zig").sha256File;
 
 const MANIFEST = "MANIFEST.json";
 const SNAPSHOT = "MANIFEST.SNAPSHOT.json";
+const MAX_SNAPSHOT_TIME_DENOMINATOR = 20;
 
 const Self = @This();
 const Args = cli.Parsed(command);
@@ -169,6 +171,7 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
     defer iter.deinit();
 
     var snapshot_time: std.Io.Timestamp = .now(self.io, .awake);
+    var smoother: Smoother(@FieldType(std.Io.Timestamp, "nanoseconds"), 15, 1) = .empty;
 
     while (try iter.next()) |item| {
         switch (item.entry.kind) {
@@ -183,11 +186,21 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
             ),
         }
         if (args.snapshot) |snap| {
-            const deadline = snapshot_time.addDuration(.fromSeconds(snap));
-            const now: std.Io.Timestamp = .now(self.io, .awake);
-            if (now.nanoseconds >= deadline.nanoseconds) {
+            const delay: Io.Duration = blk: {
+                const base: Io.Duration = .fromSeconds(snap);
+                if (smoother.current) |current| {
+                    if (current * MAX_SNAPSHOT_TIME_DENOMINATOR > base.nanoseconds)
+                        break :blk .fromNanoseconds(current * MAX_SNAPSHOT_TIME_DENOMINATOR);
+                }
+                break :blk base;
+            };
+            const deadline = snapshot_time.addDuration(delay);
+            const start_time: std.Io.Timestamp = .now(self.io, .awake);
+            if (start_time.nanoseconds >= deadline.nanoseconds) {
                 try manifest.save(self.io, dir, SNAPSHOT);
-                snapshot_time = now;
+                const end_time: std.Io.Timestamp = .now(self.io, .awake);
+                _ = smoother.update(end_time.nanoseconds - start_time.nanoseconds);
+                snapshot_time = end_time;
             }
         }
     }
