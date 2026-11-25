@@ -515,3 +515,36 @@ test readJson {
     var reader: Io.Reader = .fixed(MANIFEST);
     try maf.readJson(&reader);
 }
+
+pub fn save(self: Manifest, io: Io, dir: Io.Dir, name: []const u8) !void {
+    const tmp_name = "tmp.MANIFEST.json";
+    const m_file = try dir.createFile(io, tmp_name, .{});
+    defer m_file.close(io);
+    var buf: [128 * 1024]u8 = undefined;
+    var writer = m_file.writer(io, &buf);
+    try self.writeJson(&writer.interface);
+    try writer.flush();
+    try dir.rename(tmp_name, dir, name, io);
+}
+
+pub fn loadBelow(
+    self: *Manifest,
+    io: Io,
+    dir: Io.Dir,
+    name: []const u8,
+    root: Pathnames.Handle,
+) !void {
+    const m_file = blk: {
+        if (std.fs.path.isAbsolute(name))
+            break :blk try Io.Dir.openFileAbsolute(io, name, .{ .mode = .read_only });
+        break :blk try dir.openFile(io, name, .{ .mode = .read_only });
+    };
+    defer m_file.close(io);
+    var buf: [128 * 1024]u8 = undefined;
+    var reader = m_file.reader(io, &buf);
+    try self.readJsonBelow(&reader.interface, root);
+}
+
+pub fn load(self: *Manifest, io: Io, dir: Io.Dir, name: []const u8) !void {
+    try self.loadBelow(self, io, dir, name, Pathnames.ROOT);
+}

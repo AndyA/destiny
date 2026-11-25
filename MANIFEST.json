@@ -1,9 +1,9 @@
 {"path":"README.md","inode":"402466422","size":"2411","perms":"100644","mtime":"1795612972925651427","hash":"b20905a085b5faf6bf740082a0f30080e527f90351d69d9bca68313564f40f96"}
 {"path":"build.zig","inode":"401462719","size":"1576","perms":"100644","mtime":"1795610422267244000","hash":"6b0ef905e647d869a2539ad49871bb2ad88dceb86ee443fb729b032c323c7622"}
 {"path":"build.zig.zon","inode":"401462720","size":"522","perms":"100644","mtime":"1795015386347382301","hash":"aa9bc9cc6a350224b1206040d5c361ca38c53ff80527b7c457ba2fe48283afaf"}
-{"path":"src/commands/Scan.zig","inode":"402472350","size":"9423","perms":"100644","mtime":"1795614349729053432","hash":"c7ce086c4ca52ccc4ed6076de7a6651a8c14b78301028b4a43b6f7ba7daa9608"}
+{"path":"src/commands/Scan.zig","inode":"402472350","size":"9966","perms":"100644","mtime":"1795622990599828820","hash":"a556238b44378d2eabf4841c63cf09f324eb28dc023de3f9d493724d65c1abd7"}
 {"path":"src/destiny/Interned.zig","inode":"402238469","size":"2475","perms":"100644","mtime":"1795426923382392951","hash":"60b6dadbc3366b8ad43963dc3f3d06bdc5e97fc8723cb8866235a82a07e7366f"}
-{"path":"src/destiny/Manifest.zig","inode":"402575635","size":"17031","perms":"100644","mtime":"1795610288832802706","hash":"78a48abc95ccc12158e39af69ca9541356928e1a3d28e3d844890493b0110696"}
+{"path":"src/destiny/Manifest.zig","inode":"402575635","size":"18101","perms":"100644","mtime":"1795620097005582825","hash":"34f1dcaae533561308ef2611f5d82f2cd6681dda88319f55f72e5d67e7555f82"}
 {"path":"src/destiny/Object.zig","inode":"401721459","size":"237","perms":"100644","mtime":"1795081218606286027","hash":"a1805bf44859eded2ac8790392641d43c446476b2ddb05ee507f94f27782c17d"}
 {"path":"src/destiny/PathIndexer.zig","inode":"402238471","size":"2458","perms":"100644","mtime":"1795426923382771322","hash":"6526f97f245bae49b1dbeb3791a5cd7a31fbdfe220a8045dee587dac6c67b618"}
 {"path":"src/destiny/PathWriter.zig","inode":"402238472","size":"2768","perms":"100644","mtime":"1795535181116035698","hash":"b8aef03f0193ea4ec8a1b7ca758dcf3d2805edb23d3697cc7eba13c9f04b7509"}
@@ -12,8 +12,8 @@
 {"path":"src/destiny/tools.zig","inode":"402466424","size":"590","perms":"100644","mtime":"1795524519003514807","hash":"9888eb9df4b4201e4a4d70423c6c1f32a2bd60f5b4503e119cea3ee91e85e3ba"}
 {"path":"src/main.zig","inode":"402466425","size":"2300","perms":"100644","mtime":"1795532412202175877","hash":"d25afa917511bd9104d34f21903189b7806e895138b2104a2a479c035aa74893"}
 {"path":"src/mule.zig","inode":"402581677","size":"792","perms":"100644","mtime":"1795601578318374176","hash":"ed72615d5287be4a192fd7202bdd334ad556d9075b990487c4a40c75dc55bebf"}
-{"path":"tmp/mf.json","inode":"402530273","size":"439","perms":"100644","mtime":"1795547582578482896","hash":"884fec8b07e083c309ad029f00da9a56b11f21f2f99d54a3d23c2c6514558613"}
-{"path":"zig-out/bin/destiny","inode":"402630131","size":"525688","perms":"100755","mtime":"1795614359085246555","hash":"70227cdfcfd580fac2aab6aaf66582b1995fd67b66397c133fedd059725bf688"}
+{"path":"tmp/mf.json","inode":"402646470","size":"434","perms":"100644","mtime":"1795620486726531760","hash":"e80328779d666cefc0198b54caea4464df45096ae7853a36fc2ef883a249dab9"}
+{"path":"zig-out/bin/destiny","inode":"402650965","size":"542488","perms":"100755","mtime":"1795622999013484327","hash":"18065f1c4ee6f1816f8201c728ccedfa530b13eff2cb87c91c47e387cd52a108"}
 {"path":"zig-out/bin/mule","inode":"402614553","size":"431336","perms":"100755","mtime":"1795609386946722125","hash":"0159ba2f72a4ebc5ebf414f7c79dabf7228d84f992175d0488994db998b8c0d3"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/LICENSE","inode":"401654849","size":"1067","perms":"100644","mtime":"1795015386326302065","hash":"667adbc5a624bc8a80b22e79e19c99c50998c796ba836e08f42b7febd436f465"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/build.zig","inode":"401654851","size":"1430","perms":"100644","mtime":"1795015386326800527","hash":"89ab02d77efc958a804dcd17fc330ea831aa4abc33c1863bcc8078cb0b97164b"}

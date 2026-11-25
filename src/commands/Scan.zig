@@ -3,7 +3,7 @@ const cli = @import("cli");
 
 const Io = std.Io;
 const assert = std.debug.assert;
-const print = std.debug.print;
+// const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 const Interned = @import("../destiny/Interned.zig");
 const Pathnames = @import("../destiny/Pathnames.zig");
@@ -92,7 +92,7 @@ fn matchObject(self: *Self, path: Pathnames.Handle, stat: Io.File.Stat) Error!?O
     return null;
 }
 
-fn createObject(self: *Self, manifest: *Manifest, item: fi.FileIteratorItem) Error!Object {
+fn createObject(self: *Self, manifest: *Manifest, item: fi.FileIteratorItem) Error!?Object {
     if (try manifest.findINode(item.entry.inode)) |found| {
         var object = found;
         object.path = item.entry.path;
@@ -100,7 +100,10 @@ fn createObject(self: *Self, manifest: *Manifest, item: fi.FileIteratorItem) Err
     }
 
     const name = self.pathnames.int.get(item.entry.name);
-    const file = try item.dir.openFile(self.io, name, .{ .mode = .read_only });
+    const file = item.dir.openFile(self.io, name, .{ .mode = .read_only }) catch |err| switch (err) {
+        error.FileNotFound => return null,
+        else => return err,
+    };
     defer file.close(self.io);
 
     const stat = try file.stat(self.io);
@@ -110,7 +113,7 @@ fn createObject(self: *Self, manifest: *Manifest, item: fi.FileIteratorItem) Err
             break :blk found.hash;
 
         const sha256 = try sha256File(self.io, file);
-        print("  {x:0>64} {f}\n", .{ sha256, self.fmtPath(item.entry.path) });
+        std.log.info("  {x:0>64} {f}", .{ sha256, self.fmtPath(item.entry.path) });
 
         break :blk sha256;
     };
@@ -139,66 +142,22 @@ pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool 
     return true;
 }
 
-fn saveManifest(self: *const Self, manifest: Manifest, dir: Io.Dir, name: []const u8) Error!void {
-    const tmp_name = "tmp.MANIFEST.json";
-    const m_file = try dir.createFile(self.io, tmp_name, .{});
-    defer m_file.close(self.io);
-    var buf: [128 * 1024]u8 = undefined;
-    var writer = m_file.writer(self.io, &buf);
-    try manifest.writeJson(&writer.interface);
-    try writer.flush();
-    try dir.rename(tmp_name, dir, name, self.io);
-}
-
-fn loadManifestBelow(
-    self: *const Self,
-    manifest: *Manifest,
-    dir: Io.Dir,
-    name: []const u8,
-    root: Pathnames.Handle,
-) Error!void {
-    const m_file = try dir.openFile(self.io, name, .{ .mode = .read_only });
-    defer m_file.close(self.io);
-    var buf: [128 * 1024]u8 = undefined;
-    var reader = m_file.reader(self.io, &buf);
-    try manifest.readJsonBelow(&reader.interface, root);
-}
-
 fn addToSearch(self: *Self, dir: Io.Dir, name: []const u8, root: Pathnames.Handle) Error!void {
-    print("Loading {s}\n", .{name});
     var manifest: Manifest = .init(self.allocator, self.pathnames);
     errdefer manifest.deinit();
-    try self.loadManifestBelow(&manifest, dir, name, root);
+    try manifest.loadBelow(self.io, dir, name, root);
     try self.search.append(self.allocator, manifest);
 }
 
 fn maybeAddToSearch(self: *Self, dir: Io.Dir, name: []const u8, root: Pathnames.Handle) Error!void {
-    _ = dir.statFile(self.io, name, .{ .follow_symlinks = false }) catch |err| switch (err) {
+    self.addToSearch(dir, name, root) catch |err| switch (err) {
         error.FileNotFound => return,
         else => return err,
     };
-    try self.addToSearch(dir, name, root);
 }
 
-fn loadManifest(self: *const Self, manifest: *Manifest, dir: Io.Dir, name: []const u8) Error!void {
-    try self.loadManifestBelow(manifest, dir, name, Pathnames.ROOT);
-}
-
-pub fn scan(self: *Self, root: []const u8) Error!void {
+fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
     const args = self.args.kind.args;
-    const dir: Io.Dir = blk: {
-        if (std.fs.path.isAbsolute(root))
-            break :blk try Io.Dir.openDirAbsolute(self.io, root, openOptions);
-        break :blk try Io.Dir.cwd().openDir(self.io, root, openOptions);
-    };
-    defer dir.close(self.io);
-
-    var manifest: Manifest = .init(self.allocator, self.pathnames);
-    defer manifest.deinit();
-
-    try self.maybeAddToSearch(dir, "MANIFEST.json", Pathnames.ROOT);
-    try self.maybeAddToSearch(dir, "MANIFEST.PARTIAL.json", Pathnames.ROOT);
-
     var iter: fi.FileIterator(Self, openOptions) = try .init(
         self.allocator,
         self.io,
@@ -213,10 +172,13 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 
     while (try iter.next()) |item| {
         switch (item.entry.kind) {
-            .file => try manifest.append(try self.createObject(&manifest, item)),
-            .directory => print("Scanning {s}/{f}\n", .{ root, self.fmtPath(item.entry.path) }),
-            else => |kind| print(
-                "  Skipping {s} {f}\n",
+            .file => {
+                if (try self.createObject(manifest, item)) |object|
+                    try manifest.append(object);
+            },
+            .directory => std.log.info("Scanning {f}", .{self.fmtPath(item.entry.path)}),
+            else => |kind| std.log.info(
+                "  Skipping {s} {f}",
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
             ),
         }
@@ -224,14 +186,70 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
             const deadline = snapshot_time.addDuration(.fromSeconds(snap));
             const now: std.Io.Timestamp = .now(self.io, .awake);
             if (now.nanoseconds >= deadline.nanoseconds) {
-                try self.saveManifest(manifest, dir, "MANIFEST.PARTIAL.json");
+                try manifest.save(self.io, dir, "MANIFEST.PARTIAL.json");
                 snapshot_time = now;
             }
         }
     }
+}
 
-    print("Saving {s}\n", .{"MANIFEST.json"});
-    try self.saveManifest(manifest, dir, "MANIFEST.json");
+fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
+    const args = self.args.kind.args;
+    const Context = struct {
+        pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool {
+            if (name.len > 0 and name[0] == '.')
+                return false;
+            return true;
+        }
+    };
+    var iter: fi.FileIterator(Context, openOptions) = try .init(
+        self.allocator,
+        self.io,
+        self.pathnames,
+        dir,
+        .{},
+        .{ .max_depth = args.@"max-nested-depth" orelse std.math.maxInt(usize) },
+    );
+    defer iter.deinit();
+
+    while (try iter.next()) |item| {
+        switch (item.entry.kind) {
+            .file => {
+                const elt: Pathnames.PathElement = self.pathnames.get(item.entry.path);
+                const name = self.pathnames.int.get(elt.name);
+                if (elt.parent != Pathnames.ROOT and isManifest(name)) {
+                    std.log.info("Adding {f} to search path", .{self.fmtPath(item.entry.path)});
+                    try self.addToSearch(item.dir, name, elt.parent);
+                }
+            },
+            else => {},
+        }
+    }
+}
+
+pub fn scan(self: *Self, root: []const u8) Error!void {
+    const args = self.args.kind.args;
+
+    const dir: Io.Dir = blk: {
+        if (std.fs.path.isAbsolute(root))
+            break :blk try Io.Dir.openDirAbsolute(self.io, root, openOptions);
+        break :blk try Io.Dir.cwd().openDir(self.io, root, openOptions);
+    };
+    defer dir.close(self.io);
+
+    if (args.@"use-nested")
+        try self.scanNestedManifests(dir);
+
+    try self.maybeAddToSearch(dir, "MANIFEST.json", Pathnames.ROOT);
+    try self.maybeAddToSearch(dir, "MANIFEST.PARTIAL.json", Pathnames.ROOT);
+
+    var manifest: Manifest = .init(self.allocator, self.pathnames);
+    defer manifest.deinit();
+
+    try self.scanDir(&manifest, dir);
+
+    std.log.info("Saving {s}", .{"MANIFEST.json"});
+    try manifest.save(self.io, dir, "MANIFEST.json");
 
     dir.deleteFile(self.io, "MANIFEST.PARTIAL.json") catch |err| switch (err) {
         error.FileNotFound => {},
@@ -240,8 +258,11 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 }
 
 pub fn run(self: *Self) !void {
+    for (self.args.kind.args.use) |use| {
+        try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);
+    }
     for (self.args.kind.args.root) |root| {
-        print("Scanning {s}\n", .{root});
+        std.log.info("Scanning {s}", .{root});
         try self.scan(root);
     }
 }
