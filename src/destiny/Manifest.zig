@@ -51,17 +51,17 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
 
             handle: Handle,
             next_handle: []const Handle,
-            objects: []const Object,
+            objects: *std.ArrayList(Object),
 
             pub fn peek(self: *const Iter) ?Object {
                 if (self.handle == LAST_HANDLE) return null;
-                return self.objects[@backingInt(self.handle)];
+                return self.objects.items[@backingInt(self.handle)];
             }
 
             pub fn next(self: *Iter) ?Object {
                 if (self.handle == LAST_HANDLE) return null;
                 defer self.handle = self.next_handle[@backingInt(self.handle)];
-                return self.objects[@backingInt(self.handle)];
+                return self.objects.items[@backingInt(self.handle)];
             }
         };
 
@@ -84,7 +84,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             return self.next_handle.items.len;
         }
 
-        fn iterForHandle(self: *const Self, objects: []const Object, handle: Handle) ItemIter {
+        fn iterForHandle(self: *const Self, objects: *std.ArrayList(Object), handle: Handle) ItemIter {
             return .{
                 .handle = handle,
                 .next_handle = self.next_handle.items,
@@ -92,10 +92,10 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             };
         }
 
-        pub fn iterForKey(self: *const Self, objects: []const Object, key: K) ItemIter {
+        pub fn iterForKey(self: *const Self, objects: *std.ArrayList(Object), key: K) ItemIter {
             if (self.index.get(key)) |handle|
                 return self.iterForHandle(objects, handle);
-            return self.iterForHandle(&.{}, LAST_HANDLE);
+            return self.iterForHandle(objects, LAST_HANDLE);
         }
     };
 }
@@ -203,11 +203,11 @@ pub fn findHash(self: *Manifest, hash: u256) AppendError!?Object {
 }
 
 pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
-    return (try self.iNodeIndex()).iterForKey(self.objects.items, inode);
+    return (try self.iNodeIndex()).iterForKey(&self.objects, inode);
 }
 
 pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
-    return (try self.hashIndex()).iterForKey(self.objects.items, hash);
+    return (try self.hashIndex()).iterForKey(&self.objects, hash);
 }
 
 test Manifest {
