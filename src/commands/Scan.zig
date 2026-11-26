@@ -145,7 +145,7 @@ fn createObject(self: *Self, manifest: *Manifest, item: fi.FileIteratorItem) Err
             break :blk found.hash;
 
         const sha256 = try tools.sha256File(self.io, file);
-        std.log.info("  {x:0>64} {f}", .{ sha256, self.fmtPath(item.entry.path) });
+        std.log.info("    {x:0>64} {f}", .{ sha256, self.fmtPath(item.entry.path) });
 
         break :blk sha256;
     };
@@ -241,7 +241,7 @@ fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
                 const elt: Pathnames.PathElement = self.pathnames.get(item.entry.path);
                 const name = self.pathnames.int.get(elt.name);
                 if (isManifest(name)) {
-                    std.log.info("Referencing {f}", .{self.fmtPath(item.entry.path)});
+                    std.log.info("  Referencing {f}", .{self.fmtPath(item.entry.path)});
                     try self.addToSearch(item.dir, name, elt.parent);
                 }
             },
@@ -265,7 +265,7 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 
     try self.scanDir(&manifest, dir);
 
-    std.log.info("Saving {s}", .{MANIFEST});
+    std.log.info("  Saving {s}", .{MANIFEST});
     try manifest.save(self.io, dir, MANIFEST);
 
     dir.deleteFile(self.io, SNAPSHOT) catch |err| switch (err) {
@@ -280,7 +280,7 @@ pub fn run(self: *Self) !void {
         try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);
     }
     for (args.root) |root| {
-        std.log.info("Scanning {s}", .{root});
+        std.log.info("  Scanning {s}", .{root});
         try self.scan(root);
     }
 }
