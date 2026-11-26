@@ -204,7 +204,7 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
                 if (try self.createObject(manifest, item)) |object|
                     try manifest.append(object);
             },
-            .directory => std.log.info("Scanning {f}", .{self.fmtPath(item.entry.path)}),
+            .directory => std.log.info("  Scanning {f}", .{self.fmtPath(item.entry.path)}),
             else => |kind| std.log.info(
                 "  Skipping {s} {f}",
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
@@ -280,7 +280,7 @@ pub fn run(self: *Self) !void {
         try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);
     }
     for (args.root) |root| {
-        std.log.info("  Scanning {s}", .{root});
+        std.log.info("Scanning {s}", .{root});
         try self.scan(root);
     }
 }
