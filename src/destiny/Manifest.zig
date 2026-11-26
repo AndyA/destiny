@@ -551,7 +551,10 @@ pub fn loadBelow(
     defer m_file.close(io);
     var buf: [128 * 1024]u8 = undefined;
     var reader = m_file.reader(io, &buf);
-    try self.readJsonBelow(&reader.interface, root);
+    self.readJsonBelow(&reader.interface, root) catch |err| {
+        std.log.err("{s} at {d}", .{ @errorName(err), self.objects.items.len });
+        return err;
+    };
 }
 
 pub fn load(self: *Manifest, io: Io, dir: Io.Dir, name: []const u8) LoadError!void {
