@@ -44,7 +44,7 @@ Create or update one or more MANIFESTs. When multiple directories / manifests ar
 | `--strictest` | Use the strictest permissions rather than matching                              |
 | `--loosest`   | Use the loosest permissions rather than matching                                |
 | `--earliest`  | Choose the alternative with the earliest modification time rather than matching |
-| `--latest`    | Choose the alternive with the latest modification time rather than matching     |
+| `--latest`    | Choose the alternative with the latest modification time rather than matching   |
 | `--dry-run`   | Don't do it yet                                                                 |
 
 # TODO
