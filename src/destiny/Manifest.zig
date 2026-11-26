@@ -50,7 +50,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             const Iter = @This();
 
             handle: Handle,
-            next_handle: []const Handle,
+            next_handle: *std.ArrayList(Handle),
             objects: *std.ArrayList(Object),
 
             pub fn peek(self: *const Iter) ?Object {
@@ -60,7 +60,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
 
             pub fn next(self: *Iter) ?Object {
                 if (self.handle == LAST_HANDLE) return null;
-                defer self.handle = self.next_handle[@backingInt(self.handle)];
+                defer self.handle = self.next_handle.items[@backingInt(self.handle)];
                 return self.objects.items[@backingInt(self.handle)];
             }
         };
@@ -84,15 +84,11 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             return self.next_handle.items.len;
         }
 
-        fn iterForHandle(self: *const Self, objects: *std.ArrayList(Object), handle: Handle) ItemIter {
-            return .{
-                .handle = handle,
-                .next_handle = self.next_handle.items,
-                .objects = objects,
-            };
+        fn iterForHandle(self: *Self, objects: *std.ArrayList(Object), handle: Handle) ItemIter {
+            return .{ .handle = handle, .next_handle = &self.next_handle, .objects = objects };
         }
 
-        pub fn iterForKey(self: *const Self, objects: *std.ArrayList(Object), key: K) ItemIter {
+        pub fn iterForKey(self: *Self, objects: *std.ArrayList(Object), key: K) ItemIter {
             if (self.index.get(key)) |handle|
                 return self.iterForHandle(objects, handle);
             return self.iterForHandle(objects, LAST_HANDLE);
@@ -161,7 +157,7 @@ pub fn append(self: *Manifest, object: Object) AppendError!void {
 fn syncIndex(
     self: *Manifest,
     comptime field: []const u8,
-) AppendError!*const @FieldType(Manifest, field ++ "_index") {
+) AppendError!*@FieldType(Manifest, field ++ "_index") {
     const index = &@field(self, field ++ "_index");
     for (self.objects.items[index.size()..self.size()]) |object|
         try index.add(self.allocator, @field(object, field));
@@ -172,15 +168,15 @@ pub fn get(self: *const Manifest, handle: Handle) Object {
     return self.objects.items[@backingInt(handle)];
 }
 
-pub fn pathIndex(self: *Manifest) AppendError!*const PathIndex {
+pub fn pathIndex(self: *Manifest) AppendError!*PathIndex {
     return self.syncIndex("path");
 }
 
-pub fn iNodeIndex(self: *Manifest) AppendError!*const INodeIndex {
+pub fn iNodeIndex(self: *Manifest) AppendError!*INodeIndex {
     return self.syncIndex("inode");
 }
 
-pub fn hashIndex(self: *Manifest) AppendError!*const HashIndex {
+pub fn hashIndex(self: *Manifest) AppendError!*HashIndex {
     return self.syncIndex("hash");
 }
 
