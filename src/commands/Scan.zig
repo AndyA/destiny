@@ -68,7 +68,7 @@ fn objectMatches(self: *const Self, object: Object, stat: Io.File.Stat) bool {
     const args = self.args.kind.args;
     return object.size == stat.size and
         (!args.perms or object.permissions == stat.permissions) and
-        (!args.mtime or object.mtime.nanoseconds == stat.mtime.nanoseconds);
+        (!args.mtime or object.mtime.toMicroseconds() == stat.mtime.toMicroseconds());
 }
 
 fn matchInManifest(
