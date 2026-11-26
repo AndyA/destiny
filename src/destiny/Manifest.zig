@@ -161,7 +161,7 @@ pub fn append(self: *Manifest, object: Object) AppendError!void {
 fn syncIndex(
     self: *Manifest,
     comptime field: []const u8,
-) AppendError!*const @TypeOf(@field(self, field ++ "_index")) {
+) AppendError!*const @FieldType(Manifest, field ++ "_index") {
     const index = &@field(self, field ++ "_index");
     for (self.objects.items[index.size()..self.size()]) |object|
         try index.add(self.allocator, @field(object, field));
