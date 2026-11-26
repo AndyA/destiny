@@ -3,7 +3,6 @@ const cli = @import("cli");
 
 const Io = std.Io;
 const assert = std.debug.assert;
-// const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 const Interned = @import("../destiny/Interned.zig");
 const Pathnames = @import("../destiny/Pathnames.zig");
@@ -34,6 +33,35 @@ pub const Error = Manifest.AppendError ||
     Io.File.StatError ||
     Io.File.ReadStreamingError ||
     Io.Dir.DeleteFileError;
+
+const Snapshotter = struct {
+    const S = @This();
+    snapshot_time: std.Io.Timestamp,
+    smoother: Smoother(@FieldType(std.Io.Timestamp, "nanoseconds"), 15, 1) = .empty,
+
+    pub fn init(snapshot_time: std.Io.Timestamp) S {
+        return .{ .snapshot_time = snapshot_time };
+    }
+
+    pub fn maybeSnapshot(self: *S, io: Io, dir: Io.Dir, manifest: *Manifest) Error!void {
+        const delay: Io.Duration = blk: {
+            const base: Io.Duration = .fromSeconds(SNAPSHOT_SECONDS);
+            if (self.smoother.current) |current| {
+                if (current * MAX_SNAPSHOT_TIME_DENOMINATOR > base.nanoseconds)
+                    break :blk .fromNanoseconds(current * MAX_SNAPSHOT_TIME_DENOMINATOR);
+            }
+            break :blk base;
+        };
+        const deadline = self.snapshot_time.addDuration(delay);
+        const start_time: std.Io.Timestamp = .now(io, .awake);
+        if (start_time.nanoseconds >= deadline.nanoseconds) {
+            try manifest.save(io, dir, SNAPSHOT);
+            const end_time: std.Io.Timestamp = .now(io, .awake);
+            _ = self.smoother.update(end_time.nanoseconds - start_time.nanoseconds);
+            self.snapshot_time = end_time;
+        }
+    }
+};
 
 allocator: Allocator,
 io: Io,
@@ -138,7 +166,7 @@ fn isManifest(name: []const u8) bool {
         std.mem.endsWith(u8, name, ".json");
 }
 
-pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool {
+pub fn shouldInclude(_: Self, _: fi.FileIteratorItem, name: []const u8) bool {
     if (name.len > 0 and name[0] == '.')
         return false;
     if (isManifest(name))
@@ -165,8 +193,10 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
     );
     defer iter.deinit();
 
-    var snapshot_time: std.Io.Timestamp = .now(self.io, .awake);
-    var smoother: Smoother(@FieldType(std.Io.Timestamp, "nanoseconds"), 15, 1) = .empty;
+    var snapshotter: ?Snapshotter = if (args.snapshot)
+        .init(.now(self.io, .awake))
+    else
+        null;
 
     while (try iter.next()) |item| {
         switch (item.entry.kind) {
@@ -180,24 +210,8 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
             ),
         }
-        if (args.snapshot) {
-            const delay: Io.Duration = blk: {
-                const base: Io.Duration = .fromSeconds(SNAPSHOT_SECONDS);
-                if (smoother.current) |current| {
-                    if (current * MAX_SNAPSHOT_TIME_DENOMINATOR > base.nanoseconds)
-                        break :blk .fromNanoseconds(current * MAX_SNAPSHOT_TIME_DENOMINATOR);
-                }
-                break :blk base;
-            };
-            const deadline = snapshot_time.addDuration(delay);
-            const start_time: std.Io.Timestamp = .now(self.io, .awake);
-            if (start_time.nanoseconds >= deadline.nanoseconds) {
-                try manifest.save(self.io, dir, SNAPSHOT);
-                const end_time: std.Io.Timestamp = .now(self.io, .awake);
-                _ = smoother.update(end_time.nanoseconds - start_time.nanoseconds);
-                snapshot_time = end_time;
-            }
-        }
+        if (snapshotter) |*snap|
+            try snap.maybeSnapshot(self.io, dir, manifest);
     }
 }
 
