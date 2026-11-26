@@ -204,7 +204,7 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
                 if (try self.createObject(manifest, item)) |object|
                     try manifest.append(object);
             },
-            .directory => std.log.info("  Scanning {f}", .{self.fmtPath(item.entry.path)}),
+            .directory => std.log.info("  Indexing {f}", .{self.fmtPath(item.entry.path)}),
             else => |kind| std.log.info(
                 "  Skipping {s} {f}",
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
