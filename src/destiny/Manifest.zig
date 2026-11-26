@@ -336,7 +336,7 @@ pub fn writeJson(self: Manifest, writer: *Io.Writer) WriteJsonError!void {
             @backingInt(object.permissions),
         });
         try printObjectField(&stringify, writer, "mtime", "{d}", .{
-            object.mtime.nanoseconds,
+            object.mtime.toMicroseconds(),
         });
         try printObjectField(&stringify, writer, "hash", "{x:0>64}", .{object.hash});
         try stringify.endObject();
@@ -384,9 +384,8 @@ fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
 fn timeParser(comptime name: []const u8) type {
     return struct {
         pub fn parseField(_: ParserContext, object: *Object, field: []const u8) ReadJsonError!void {
-            @field(object, name) = .fromNanoseconds(
-                try std.fmt.parseInt(@FieldType(Io.Timestamp, "nanoseconds"), field, 10),
-            );
+            const microseconds = try std.fmt.parseInt(i96, field, 10);
+            @field(object, name) = .fromNanoseconds(microseconds * std.time.ns_per_us);
         }
     };
 }
