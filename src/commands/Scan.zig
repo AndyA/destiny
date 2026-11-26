@@ -204,9 +204,9 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
                 if (try self.createObject(manifest, item)) |object|
                     try manifest.append(object);
             },
-            .directory => std.log.info("Scanning \"{f}\"", .{self.fmtPath(item.entry.path)}),
+            .directory => std.log.info("Scanning {f}", .{self.fmtPath(item.entry.path)}),
             else => |kind| std.log.info(
-                "  Skipping {s} \"{f}\"",
+                "  Skipping {s} {f}",
                 .{ @tagName(kind), self.fmtPath(item.entry.path) },
             ),
         }
@@ -241,7 +241,7 @@ fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
                 const elt: Pathnames.PathElement = self.pathnames.get(item.entry.path);
                 const name = self.pathnames.int.get(elt.name);
                 if (isManifest(name)) {
-                    std.log.info("Adding \"{f}\" to search path", .{self.fmtPath(item.entry.path)});
+                    std.log.info("Adding {f} to search path", .{self.fmtPath(item.entry.path)});
                     try self.addToSearch(item.dir, name, elt.parent);
                 }
             },
@@ -265,7 +265,7 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 
     try self.scanDir(&manifest, dir);
 
-    std.log.info("Saving \"{s}\"", .{MANIFEST});
+    std.log.info("Saving {s}", .{MANIFEST});
     try manifest.save(self.io, dir, MANIFEST);
 
     dir.deleteFile(self.io, SNAPSHOT) catch |err| switch (err) {
@@ -280,7 +280,7 @@ pub fn run(self: *Self) !void {
         try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);
     }
     for (args.root) |root| {
-        std.log.info("Scanning \"{s}\"", .{root});
+        std.log.info("Scanning {s}", .{root});
         try self.scan(root);
     }
 }
