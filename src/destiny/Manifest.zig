@@ -357,6 +357,7 @@ fn pathParser(comptime name: []const u8) type {
         }
     };
 }
+
 fn intParser(comptime name: []const u8, comptime base: comptime_int) type {
     const FT = @FieldType(Object, name);
     const info = @typeInfo(FT);
