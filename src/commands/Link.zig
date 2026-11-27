@@ -47,7 +47,7 @@ fn fmtPath(self: *Self, path: Pathnames.Handle) PathWriter.Fmt {
     return self.path_writer.fmt(path);
 }
 
-fn findBestInode(self: *Self, gpa: Allocator, manifest: *Manifest, handle: Manifest.Handle) Error!?Object {
+fn findBestLinkee(self: *Self, gpa: Allocator, manifest: *Manifest, handle: Manifest.Handle) Error!?Object {
     const Item = struct {
         object: Object,
         depth: usize,
@@ -127,7 +127,7 @@ fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Hand
     const gpa = arena.allocator();
 
     const args = self.args.kind.args;
-    if (try self.findBestInode(gpa, manifest, handle)) |best| {
+    if (try self.findBestLinkee(gpa, manifest, handle)) |best| {
         var best_path = try self.path_writer.toArrayList(gpa, best.path);
         defer best_path.deinit(gpa);
         std.log.info("  {s} ➡️", .{best_path.items});
