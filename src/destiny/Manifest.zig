@@ -527,12 +527,14 @@ pub const SaveError = Io.File.OpenError ||
 pub fn save(self: Manifest, io: Io, dir: Io.Dir, name: []const u8) SaveError!void {
     assert(!std.fs.path.isAbsolute(name));
     const tmp_name = "tmp.MANIFEST.json";
-    const m_file = try dir.createFile(io, tmp_name, .{});
-    defer m_file.close(io);
-    var buf: [128 * 1024]u8 = undefined;
-    var writer = m_file.writer(io, &buf);
-    try self.writeJson(&writer.interface);
-    try writer.flush();
+    {
+        const m_file = try dir.createFile(io, tmp_name, .{});
+        defer m_file.close(io);
+        var buf: [128 * 1024]u8 = undefined;
+        var writer = m_file.writer(io, &buf);
+        try self.writeJson(&writer.interface);
+        try writer.flush();
+    }
     try dir.rename(tmp_name, dir, name, io);
 }
 
