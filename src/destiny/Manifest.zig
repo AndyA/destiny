@@ -525,6 +525,7 @@ pub const SaveError = Io.File.OpenError ||
     Io.Dir.RenameError;
 
 pub fn save(self: Manifest, io: Io, dir: Io.Dir, name: []const u8) SaveError!void {
+    assert(!std.fs.path.isAbsolute(name));
     const tmp_name = "tmp.MANIFEST.json";
     const m_file = try dir.createFile(io, tmp_name, .{});
     defer m_file.close(io);
