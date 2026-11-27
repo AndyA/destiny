@@ -21,7 +21,7 @@ const MAX_SNAPSHOT_TIME_DENOMINATOR = 20;
 const Self = @This();
 const Args = cli.Parsed(command);
 
-pub const openOptions: Io.Dir.OpenOptions = .{
+const openOptions: Io.Dir.OpenOptions = .{
     .follow_symlinks = false,
     .iterate = true,
 };
@@ -36,11 +36,11 @@ pub const Error = Manifest.AppendError ||
 
 const Snapshotter = struct {
     const S = @This();
-    snapshot_time: std.Io.Timestamp,
+    last_time: std.Io.Timestamp,
     smoother: Smoother(@FieldType(std.Io.Timestamp, "nanoseconds"), 15, 1) = .empty,
 
-    pub fn init(snapshot_time: std.Io.Timestamp) S {
-        return .{ .snapshot_time = snapshot_time };
+    pub fn init(last_time: std.Io.Timestamp) S {
+        return .{ .last_time = last_time };
     }
 
     pub fn maybeSnapshot(self: *S, io: Io, dir: Io.Dir, manifest: *Manifest) Error!void {
@@ -52,13 +52,13 @@ const Snapshotter = struct {
             }
             break :blk base;
         };
-        const deadline = self.snapshot_time.addDuration(delay);
+        const deadline = self.last_time.addDuration(delay);
         const start_time: std.Io.Timestamp = .now(io, .awake);
         if (start_time.nanoseconds >= deadline.nanoseconds) {
             try manifest.save(io, dir, SNAPSHOT);
             const end_time: std.Io.Timestamp = .now(io, .awake);
             _ = self.smoother.update(end_time.nanoseconds - start_time.nanoseconds);
-            self.snapshot_time = end_time;
+            self.last_time = end_time;
         }
     }
 };
@@ -215,7 +215,7 @@ fn scanDir(self: *Self, manifest: *Manifest, dir: Io.Dir) Error!void {
     }
 }
 
-fn scanNestedManifests(self: *Self, dir: Io.Dir) Error!void {
+fn findNestedManifests(self: *Self, dir: Io.Dir) Error!void {
     const args = self.args.kind.args;
     const Context = struct {
         pub fn shouldInclude(_: @This(), _: fi.FileIteratorItem, name: []const u8) bool {
@@ -258,7 +258,7 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
     };
     defer dir.close(self.io);
 
-    try self.scanNestedManifests(dir);
+    try self.findNestedManifests(dir);
 
     var manifest: Manifest = .init(self.allocator, self.pathnames);
     defer manifest.deinit();

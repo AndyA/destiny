@@ -416,10 +416,14 @@ pub fn readJsonBelow(self: *Manifest, io_reader: *Io.Reader, root: Pathnames.Han
     var reader: std.json.Scanner.Reader = .init(gpa, io_reader);
     defer reader.deinit();
     const ctx: ParserContext = .{ .indexer = &indexer };
+    const parsers_info = @typeInfo(@TypeOf(parsers)).@"struct";
 
     maf: while (true) {
         var object: Object = undefined;
         object.kind = Io.File.Kind.file;
+
+        // Restart the scanner for each object
+        reader.scanner.state = .value;
 
         const tok = reader.next() catch |err| switch (err) {
             error.UnexpectedEndOfInput => break :maf,
@@ -435,14 +439,9 @@ pub fn readJsonBelow(self: *Manifest, io_reader: *Io.Reader, root: Pathnames.Han
             const key_token = try reader.nextAlloc(gpa, .alloc_if_needed);
             defer freeToken(gpa, key_token);
             switch (key_token) {
-                .object_end => {
-                    // Restart the scanner for the next object
-                    reader.scanner.state = .value;
-                    break :obj;
-                },
+                .object_end => break :obj,
                 .string, .allocated_string => |field| {
-                    const info = @typeInfo(@TypeOf(parsers)).@"struct";
-                    inline for (info.field_names, 0..) |name, i| {
+                    inline for (parsers_info.field_names, 0..) |name, i| {
                         if (std.mem.eql(u8, field, name)) {
                             seen |= 1 << @intCast(i);
                             const Parser = @field(parsers, name);
@@ -455,14 +454,22 @@ pub fn readJsonBelow(self: *Manifest, io_reader: *Io.Reader, root: Pathnames.Han
                             continue :obj;
                         }
                     }
+                    std.log.err("Unknown field: {s}", .{field});
                     return error.SyntaxError;
                 },
                 else => return error.SyntaxError,
             }
         }
 
-        if (seen != std.math.maxInt(FieldMask))
+        if (seen != std.math.maxInt(FieldMask)) {
+            std.log.err("Missing fields:", .{});
+            inline for (parsers_info.field_names, 0..) |name, i| {
+                if ((seen & (1 << @intCast(i))) == 0)
+                    std.log.err("  {s}", .{name});
+            }
+
             return error.SyntaxError;
+        }
 
         try self.append(object);
     }
