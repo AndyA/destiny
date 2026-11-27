@@ -246,7 +246,7 @@ fn findNestedManifests(self: *Self, dir: Io.Dir) Error!void {
     }
 }
 
-pub fn scan(self: *Self, root: []const u8) Error!void {
+fn scan(self: *Self, root: []const u8) Error!void {
     const dir: Io.Dir = blk: {
         if (std.fs.path.isAbsolute(root))
             break :blk try Io.Dir.openDirAbsolute(self.io, root, openOptions);
@@ -275,22 +275,23 @@ pub fn run(self: *Self) Error!void {
     for (args.use) |use| {
         try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);
     }
-    for (args.root) |root| {
+    for (args.dir) |root| {
         std.log.info("Scanning {s}", .{root});
         try self.scan(root);
     }
 }
 
+const help_short = "Create or update the " ++ K.MANIFEST ++ " in one or more directory.";
+
 pub const command: cli.Command = .{
     .name = .scan,
-    .help = "Create or update one or more MANIFESTs.\n" ++
-        "When multiple directories / manifests are specified update each individually.",
-    .help_short = "Create or update one or more MANIFESTs.",
+    .help = help_short ++ "\n\nWhen multiple directories are specified, update each individually.\n",
+    .help_short = help_short,
     .positional_args = &.{.init(
-        .root,
+        .dir,
         []const []const u8,
         .{
-            .help = "Root " ++ K.MANIFEST ++ " or directory.",
+            .help = "Directory to scan. May be specified more than once.",
             .count = .unlimited,
             .default_value = &.{"."},
         },

@@ -55,6 +55,16 @@ pub fn get(self: *const Pathnames, handle: Handle) PathElement {
     return self.paths.items[@backingInt(handle)];
 }
 
+pub fn depth(self: *const Pathnames, handle: Handle) usize {
+    var dep: usize = 0;
+    var current = handle;
+    while (current != ROOT) {
+        current = self.get(current).parent;
+        dep += 1;
+    }
+    return dep;
+}
+
 pub fn getElementName(self: *const Pathnames, handle: Handle) []const u8 {
     return self.int.get(self.get(handle).name);
 }

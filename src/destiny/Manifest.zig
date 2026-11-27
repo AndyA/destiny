@@ -17,7 +17,7 @@ pub const LAST_HANDLE: Handle = @fromBackingInt(std.math.maxInt(HandleInt));
 
 pub const AppendError = Allocator.Error || error{DuplicatePath};
 
-fn IntContext(comptime T: type) type {
+pub fn IntContext(comptime T: type) type {
     return struct {
         pub fn hash(_: @This(), value: T) u64 {
             var hasher: std.hash.Wyhash = .init(0);
@@ -84,7 +84,7 @@ fn MultiIndex(comptime K: type, comptime Context: type) type {
             return self.next_handle.items.len;
         }
 
-        fn iterForHandle(self: *Self, objects: *std.ArrayList(Object), handle: Handle) ItemIter {
+        pub fn iterForHandle(self: *Self, objects: *std.ArrayList(Object), handle: Handle) ItemIter {
             return .{ .handle = handle, .next_handle = &self.next_handle, .objects = objects };
         }
 
@@ -200,6 +200,14 @@ pub fn findHash(self: *Manifest, hash: u256) AppendError!?Object {
 
 pub fn iNodeIter(self: *Manifest, inode: Io.File.INode) AppendError!INodeIndex.ItemIter {
     return (try self.iNodeIndex()).iterForKey(&self.objects, inode);
+}
+
+pub fn iNodeHandleIter(self: *Manifest, handle: Handle) AppendError!INodeIndex.ItemIter {
+    return (try self.iNodeIndex()).iterForHandle(&self.objects, handle);
+}
+
+pub fn hashHandleIter(self: *Manifest, handle: Handle) AppendError!HashIndex.ItemIter {
+    return (try self.hashIndex()).iterForHandle(&self.objects, handle);
 }
 
 pub fn hashIter(self: *Manifest, hash: u256) AppendError!HashIndex.ItemIter {
@@ -564,7 +572,7 @@ pub fn loadBelow(
 }
 
 pub fn load(self: *Manifest, io: Io, dir: Io.Dir, name: []const u8) LoadError!void {
-    try self.loadBelow(self, io, dir, name, Pathnames.ROOT);
+    try self.loadBelow(io, dir, name, Pathnames.ROOT);
 }
 
 test {
