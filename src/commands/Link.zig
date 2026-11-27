@@ -145,7 +145,7 @@ fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Hand
     }
 }
 
-fn link(self: *Self, root: []const u8) Error!void {
+fn linkByHash(self: *Self, root: []const u8) Error!void {
     const dir: Io.Dir = blk: {
         const options: Io.Dir.OpenOptions = .{ .follow_symlinks = false };
         if (std.fs.path.isAbsolute(root))
@@ -170,7 +170,7 @@ pub fn run(self: *Self) Error!void {
 
     for (args.dir) |root| {
         std.log.info("Linking {s}", .{root});
-        try self.link(root);
+        try self.linkByHash(root);
     }
 }
 
