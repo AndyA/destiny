@@ -65,6 +65,9 @@ fn findBestInode(self: *Self, gpa: Allocator, manifest: *Manifest, handle: Manif
 
     var item_iter = try manifest.hashHandleIter(handle);
     while (item_iter.next()) |object| {
+        // Don't bother linking zero byte objects
+        if (object.size == 0)
+            return null;
         const slot = try survey.getOrPutContext(gpa, object.inode, .{});
         const depth = self.pathnames.depth(object.path);
         if (slot.found_existing) {
