@@ -106,11 +106,15 @@ fn findBestLinkee(self: *Self, gpa: Allocator, manifest: *Manifest, handle: Mani
 fn linkFile(self: *Self, gpa: Allocator, dir: Io.Dir, best_path: []const u8, object: Object) Error!void {
     var object_path = try self.path_writer.toArrayList(gpa, object.path);
     defer object_path.deinit(gpa);
+
+    std.log.info("    ➡️ {s}", .{object_path.items});
+
+    if (self.args.kind.args.@"dry-run") return;
+
     const tmp = try self.pathnames.internPeerName(object.path, K.TMP_NAME);
     var tmp_path = try self.path_writer.toArrayList(gpa, tmp);
     defer tmp_path.deinit(gpa);
 
-    std.log.info("    ➡️ {s}", .{object_path.items});
     const options: Io.Dir.HardLinkOptions = .{ .follow_symlinks = false };
     dir.hardLink(best_path, dir, tmp_path.items, self.io, options) catch |err| switch (err) {
         error.PathAlreadyExists => {
@@ -127,7 +131,6 @@ fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Hand
     defer arena.deinit();
     const gpa = arena.allocator();
 
-    const args = self.args.kind.args;
     if (try self.findBestLinkee(gpa, manifest, handle)) |best| {
         var best_path = try self.path_writer.toArrayList(gpa, best.path);
         defer best_path.deinit(gpa);
@@ -136,11 +139,7 @@ fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Hand
         var item_iter = try manifest.hashHandleIter(handle);
         while (item_iter.next()) |object| {
             if (object.inode == best.inode) continue;
-            if (args.@"dry-run") {
-                std.log.info("    ➡️ {f}", .{self.fmtPath(object.path)});
-            } else {
-                try self.linkFile(gpa, dir, best_path.items, object);
-            }
+            try self.linkFile(gpa, dir, best_path.items, object);
         }
     }
 }

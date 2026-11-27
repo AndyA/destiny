@@ -1,7 +1,7 @@
 {"path":"README.md","inode":"629231239","size":"2411","perms":"100644","mtime":"1795713422576563","hash":"9af6d26c634bc40b40013b6bff211c12774b3d72ce1e99203d3a560aac9bd69c"}
 {"path":"build.zig","inode":"629103664","size":"1576","perms":"100644","mtime":"1795603609888440","hash":"6b0ef905e647d869a2539ad49871bb2ad88dceb86ee443fb729b032c323c7622"}
 {"path":"build.zig.zon","inode":"627706754","size":"522","perms":"100644","mtime":"1795020019221085","hash":"aa9bc9cc6a350224b1206040d5c361ca38c53ff80527b7c457ba2fe48283afaf"}
-{"path":"src/commands/Link.zig","inode":"629361366","size":"6416","perms":"100644","mtime":"1795819547568908","hash":"f80f34d9bfbedf8e4d495ccbd344d21cbd45356b693aed582a9d1387056a2067"}
+{"path":"src/commands/Link.zig","inode":"629361366","size":"6289","perms":"100644","mtime":"1795820568737377","hash":"59428cfa64fe391ba97625d6b5da28f3a33316d45abaa048dd9a085f5cce0272"}
 {"path":"src/commands/Scan.zig","inode":"629351088","size":"10354","perms":"100644","mtime":"1795809551908156","hash":"06873eefe607f8c057c561db49d303b23092d39b2e67112964081b8a2522cb4d"}
 {"path":"src/destiny/Interned.zig","inode":"629361357","size":"2523","perms":"100644","mtime":"1795819547565982","hash":"35d198e5931acfef726da2175449f0496fd3d86dfdcd1c9958f526515621f34e"}
 {"path":"src/destiny/Manifest.zig","inode":"629361355","size":"19113","perms":"100644","mtime":"1795819547565337","hash":"e743e67bfb650cfaf00577bea63961462ebfc3e9d4dbf1697c18059a63106951"}
@@ -15,7 +15,7 @@
 {"path":"src/destiny/tools.zig","inode":"629361354","size":"638","perms":"100644","mtime":"1795819547564757","hash":"372a009f1d1d1cde11fce834b416212e6f6c59122f00ac758acf4e170780a46c"}
 {"path":"src/main.zig","inode":"629351099","size":"2220","perms":"100644","mtime":"1795808443143793","hash":"c1404a0dd8cdd9a6d316f786e83f998a98d13026545ebeaf547b4b807c4ec7c4"}
 {"path":"src/mule.zig","inode":"629361364","size":"437","perms":"100644","mtime":"1795819547568195","hash":"7ba4d2f3abd32f24b035a4afdab962bc3915e4641b7d217e2d9ba850e01aabd4"}
-{"path":"zig-out/bin/destiny","inode":"629353939","size":"578936","perms":"100755","mtime":"1795810042790767","hash":"8621fd6ed76f0e60f5974fa15a81c1ad7b8e80deae0697b605d58187278a3a1f"}
+{"path":"zig-out/bin/destiny","inode":"629370449","size":"578936","perms":"100755","mtime":"1795820575895946","hash":"46e6144d3ab25f68c11b5a24ec39142e7468661a1b86fe59fc3d4f6a54f03624"}
 {"path":"zig-out/bin/mule","inode":"629351189","size":"397144","perms":"100755","mtime":"1795808448717131","hash":"1917b420f51d4287bc8163eb2476fd44a7c01db60d318a5df2143be3390b0936"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/LICENSE","inode":"627706762","size":"1067","perms":"100644","mtime":"1795020019222506","hash":"667adbc5a624bc8a80b22e79e19c99c50998c796ba836e08f42b7febd436f465"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/build.zig","inode":"627706763","size":"1430","perms":"100644","mtime":"1795020019222653","hash":"89ab02d77efc958a804dcd17fc330ea831aa4abc33c1863bcc8078cb0b97164b"}
