@@ -54,6 +54,26 @@ pub fn writePath(self: *PathWriter, writer: *Io.Writer, path: Pathnames.Handle) 
     }
 }
 
+pub fn toArrayListWithSuffix(
+    self: *PathWriter,
+    allocator: Allocator,
+    path: Pathnames.Handle,
+    suffix: []const u8,
+) Error!std.ArrayList(u8) {
+    var w: Io.Writer.Allocating = .init(allocator);
+    try self.writePath(&w.writer, path);
+    try w.writer.writeAll(suffix);
+    return w.toArrayList();
+}
+
+pub fn toArrayList(
+    self: *PathWriter,
+    allocator: Allocator,
+    path: Pathnames.Handle,
+) Error!std.ArrayList(u8) {
+    return try self.toArrayListWithSuffix(allocator, path, "");
+}
+
 pub fn writePathJson(self: *PathWriter, writer: *Io.Writer, path: Pathnames.Handle) Error!void {
     try self.buildPath(path);
     var pos = self.path_buf.items.len;

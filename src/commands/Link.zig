@@ -23,7 +23,10 @@ args: Args,
 path_writer: PathWriter,
 
 pub const Error = Manifest.AppendError ||
-    Manifest.LoadError;
+    Manifest.LoadError ||
+    PathWriter.Error ||
+    Io.Dir.HardLinkError ||
+    Io.Dir.RenameError;
 
 pub fn init(allocator: Allocator, io: Io, pathnames: *Pathnames, args: Args) Self {
     return .{
@@ -43,27 +46,30 @@ fn fmtPath(self: *Self, path: Pathnames.Handle) PathWriter.Fmt {
     return self.path_writer.fmt(path);
 }
 
-fn findBestInode(self: *Self, manifest: *Manifest, handle: Manifest.Handle) Error!?Object {
-    var arena: std.heap.ArenaAllocator = .init(self.allocator);
-    defer arena.deinit();
-    const gpa = arena.allocator();
-
+fn findBestInode(self: *Self, gpa: Allocator, manifest: *Manifest, handle: Manifest.Handle) Error!?Object {
     const Item = struct {
         object: Object,
         depth: usize,
         count: usize,
+
+        fn betterThan(me: @This(), other: ?@This()) bool {
+            if (other) |o|
+                return me.count > o.count or
+                    (me.count == o.count and me.depth < o.depth);
+            return true;
+        }
     };
 
-    var inode_survey: HashMapUnmanaged(Io.File.INode, Item, Manifest.IntContext(Io.File.INode), 80) = .empty;
-    defer inode_survey.deinit(gpa);
+    var survey: HashMapUnmanaged(Io.File.INode, Item, Manifest.IntContext(Io.File.INode), 80) = .empty;
+    defer survey.deinit(gpa);
 
     var item_iter = try manifest.hashHandleIter(handle);
     while (item_iter.next()) |object| {
-        const slot = try inode_survey.getOrPutContext(gpa, object.inode, .{});
+        const slot = try survey.getOrPutContext(gpa, object.inode, .{});
         const depth = self.pathnames.depth(object.path);
         if (slot.found_existing) {
             slot.value_ptr.count += 1;
-            if (depth < slot.value_ptr.depth) {
+            if (depth <= slot.value_ptr.depth) {
                 slot.value_ptr.depth = depth;
                 slot.value_ptr.object = object;
             }
@@ -76,34 +82,61 @@ fn findBestInode(self: *Self, manifest: *Manifest, handle: Manifest.Handle) Erro
         }
     }
 
-    assert(inode_survey.count() > 0);
+    assert(survey.count() > 0);
 
-    if (inode_survey.count() == 1)
+    if (survey.count() == 1)
         return null;
 
     var best: ?Item = null;
-    var survey_iter = inode_survey.iterator();
-    while (survey_iter.next()) |item| {
-        if (best == null or item.value_ptr.count > best.?.count) {
-            best = item.value_ptr.*;
-        }
+    var survey_iter = survey.iterator();
+    while (survey_iter.next()) |entry| {
+        const item = entry.value_ptr.*;
+        if (item.betterThan(best))
+            best = item;
     }
 
     return best.?.object;
 }
 
-fn linkItem(self: *Self, manifest: *Manifest, handle: Manifest.Handle) Error!void {
-    if (try self.findBestInode(manifest, handle)) |best| {
+fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Handle) Error!void {
+    var arena: std.heap.ArenaAllocator = .init(self.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    const args = self.args.kind.args;
+    if (try self.findBestInode(gpa, manifest, handle)) |best| {
         const sample = manifest.get(handle);
         std.log.info("  {x:0>64}", .{sample.hash});
+
+        var best_path = try self.path_writer.toArrayList(gpa, best.path);
+        defer best_path.deinit(gpa);
 
         {
             var item_iter = try manifest.hashHandleIter(handle);
             while (item_iter.next()) |object| {
-                std.log.info(
-                    "    {d:>12} {f} -> {f}",
-                    .{ object.inode, self.fmtPath(best.path), self.fmtPath(object.path) },
-                );
+                if (object.inode == best.inode) continue;
+                var object_path = try self.path_writer.toArrayList(gpa, object.path);
+                defer object_path.deinit(gpa);
+                var tmp_path = try self.path_writer.toArrayListWithSuffix(gpa, object.path, ".destiny.tmp");
+                defer tmp_path.deinit(gpa);
+                std.log.info("    {s} -> {s}", .{ best_path.items, object_path.items });
+                if (!args.@"dry-run") {
+                    try Io.Dir.hardLink(
+                        dir,
+                        best_path.items,
+                        dir,
+                        tmp_path.items,
+                        self.io,
+                        .{ .follow_symlinks = false },
+                    );
+                    try Io.Dir.rename(
+                        dir,
+                        tmp_path.items,
+                        dir,
+                        object_path.items,
+                        self.io,
+                    );
+                }
             }
         }
     }
@@ -125,7 +158,7 @@ fn link(self: *Self, root: []const u8) Error!void {
 
     var hash_iter = (try manifest.hashIndex()).index.iterator();
     while (hash_iter.next()) |entry| {
-        try self.linkItem(&manifest, entry.value_ptr.*);
+        try self.linkItem(dir, &manifest, entry.value_ptr.*);
     }
 }
 
