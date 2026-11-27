@@ -4,6 +4,7 @@ const cli = @import("cli");
 const Io = std.Io;
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
+const K = @import("../destiny/constants.zig");
 const Interned = @import("../destiny/Interned.zig");
 const Pathnames = @import("../destiny/Pathnames.zig");
 const PathWriter = @import("../destiny/PathWriter.zig");
@@ -12,11 +13,6 @@ const Object = @import("../destiny/Object.zig");
 const fi = @import("../destiny/file_iterator.zig");
 const Smoother = @import("../destiny/smoother.zig").Smoother;
 const tools = @import("../destiny/tools.zig");
-
-const MANIFEST = "MANIFEST.json";
-const SNAPSHOT = "MANIFEST.SNAPSHOT.json";
-const SNAPSHOT_SECONDS = 10;
-const MAX_SNAPSHOT_TIME_DENOMINATOR = 20;
 
 const Self = @This();
 const Args = cli.Parsed(command);
@@ -45,17 +41,17 @@ const Snapshotter = struct {
 
     pub fn maybeSnapshot(self: *S, io: Io, dir: Io.Dir, manifest: *Manifest) Error!void {
         const delay: Io.Duration = blk: {
-            const base: Io.Duration = .fromSeconds(SNAPSHOT_SECONDS);
+            const base: Io.Duration = .fromSeconds(K.SNAPSHOT_SECONDS);
             if (self.smoother.current) |current| {
-                if (current * MAX_SNAPSHOT_TIME_DENOMINATOR > base.nanoseconds)
-                    break :blk .fromNanoseconds(current * MAX_SNAPSHOT_TIME_DENOMINATOR);
+                if (current * K.MAX_SNAPSHOT_TIME_DENOMINATOR > base.nanoseconds)
+                    break :blk .fromNanoseconds(current * K.MAX_SNAPSHOT_TIME_DENOMINATOR);
             }
             break :blk base;
         };
         const deadline = self.last_time.addDuration(delay);
         const start_time: std.Io.Timestamp = .now(io, .awake);
         if (start_time.nanoseconds >= deadline.nanoseconds) {
-            try manifest.save(io, dir, SNAPSHOT);
+            try manifest.save(io, dir, K.SNAPSHOT);
             const end_time: std.Io.Timestamp = .now(io, .awake);
             _ = self.smoother.update(end_time.nanoseconds - start_time.nanoseconds);
             self.last_time = end_time;
@@ -265,16 +261,16 @@ pub fn scan(self: *Self, root: []const u8) Error!void {
 
     try self.scanDir(&manifest, dir);
 
-    std.log.info("  Saving {s}", .{MANIFEST});
-    try manifest.save(self.io, dir, MANIFEST);
+    std.log.info("  Saving {s}", .{K.MANIFEST});
+    try manifest.save(self.io, dir, K.MANIFEST);
 
-    dir.deleteFile(self.io, SNAPSHOT) catch |err| switch (err) {
+    dir.deleteFile(self.io, K.SNAPSHOT) catch |err| switch (err) {
         error.FileNotFound => {},
         else => return err,
     };
 }
 
-pub fn run(self: *Self) !void {
+pub fn run(self: *Self) Error!void {
     const args = self.args.kind.args;
     for (args.use) |use| {
         try self.addToSearch(Io.Dir.cwd(), use, Pathnames.ROOT);

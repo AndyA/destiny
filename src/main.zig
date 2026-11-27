@@ -19,6 +19,7 @@ test {
 
 const command_handlers = .{
     .scan = @import("commands/Scan.zig"),
+    // .link = @import("commands/Link.zig"),
 };
 
 const subcommands = blk: {
@@ -55,10 +56,12 @@ pub fn main(init: std.process.Init) !void {
     defer paths.deinit();
 
     if (parsed.subcommand) |subcommand| {
-        const info = @typeInfo(@TypeOf(command_handlers)).@"struct";
+        print("subcommand: {s}\n", .{@tagName(subcommand)});
         switch (subcommand) {
             inline else => |args| {
+                const info = @typeInfo(@TypeOf(command_handlers)).@"struct";
                 const Command = @field(command_handlers, info.field_names[@backingInt(subcommand)]);
+
                 var handler: Command = .init(init.gpa, init.io, &paths, args);
                 defer handler.deinit();
                 try handler.run();
