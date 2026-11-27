@@ -88,6 +88,7 @@ fn findBestLinkee(self: *Self, gpa: Allocator, manifest: *Manifest, handle: Mani
 
     assert(survey.count() > 0);
 
+    // Only one inode involved - no linking required
     if (survey.count() == 1)
         return null;
 
@@ -177,7 +178,12 @@ const help_short = "Hard link files that have the same contents.";
 
 pub const command: cli.Command = .{
     .name = .link,
-    .help = help_short ++ "\n\nWhen multiple directories / manifests are specified, link each individually.\n",
+    .help = help_short ++
+        \\
+        \\
+        \\When multiple directories are specified, link each individually.
+        \\
+    ,
     .help_short = help_short,
     .positional_args = &.{.init(
         .dir,
@@ -192,6 +198,7 @@ pub const command: cli.Command = .{
         .init(.@"dry-run", bool, .{
             .help = "Just report what would be done.",
             .default_value = false,
+            .short = 'n',
         }),
     },
 };

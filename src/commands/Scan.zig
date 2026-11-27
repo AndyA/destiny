@@ -285,7 +285,12 @@ const help_short = "Create or update the " ++ K.MANIFEST ++ " in one or more dir
 
 pub const command: cli.Command = .{
     .name = .scan,
-    .help = help_short ++ "\n\nWhen multiple directories are specified, update each individually.\n",
+    .help = help_short ++
+        \\
+        \\
+        \\When multiple directories are specified, update each individually.
+        \\
+    ,
     .help_short = help_short,
     .positional_args = &.{.init(
         .dir,
