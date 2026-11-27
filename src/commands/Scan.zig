@@ -281,7 +281,7 @@ pub fn run(self: *Self) Error!void {
     }
 }
 
-const help_short = "Create or update the " ++ K.MANIFEST ++ " in one or more directory.";
+const help_short = "Create or update the " ++ K.MANIFEST ++ " in one or more directories.";
 
 pub const command: cli.Command = .{
     .name = .scan,
@@ -328,7 +328,6 @@ pub const command: cli.Command = .{
         .init(.snapshot, bool, .{
             .help = "Snapshot progress every 10 seconds.",
             .default_value = true,
-            .short = 's',
         }),
     },
 };
