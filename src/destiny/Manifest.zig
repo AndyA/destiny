@@ -558,7 +558,7 @@ pub fn loadBelow(
     var buf: [128 * 1024]u8 = undefined;
     var reader = m_file.reader(io, &buf);
     self.readJsonBelow(&reader.interface, root) catch |err| {
-        std.log.err("{s} at {d}", .{ @errorName(err), self.objects.items.len });
+        std.log.err("Error in {s} at object {d}", .{ name, self.objects.items.len + 1 });
         return err;
     };
 }
