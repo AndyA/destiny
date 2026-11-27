@@ -26,6 +26,7 @@ pub const Error = Manifest.AppendError ||
     Manifest.LoadError ||
     PathWriter.Error ||
     Io.Dir.HardLinkError ||
+    Io.Dir.DeleteFileError ||
     Io.Dir.RenameError;
 
 pub fn init(allocator: Allocator, io: Io, pathnames: *Pathnames, args: Args) Self {
@@ -101,6 +102,25 @@ fn findBestInode(self: *Self, gpa: Allocator, manifest: *Manifest, handle: Manif
     return best.?.object;
 }
 
+fn linkFile(self: *Self, gpa: Allocator, dir: Io.Dir, best_path: []const u8, object: Object) Error!void {
+    var object_path = try self.path_writer.toArrayList(gpa, object.path);
+    defer object_path.deinit(gpa);
+    const tmp = try self.pathnames.internPeerName(object.path, K.TMP_NAME);
+    var tmp_path = try self.path_writer.toArrayList(gpa, tmp);
+    defer tmp_path.deinit(gpa);
+
+    std.log.info("    ➡️ {s}", .{object_path.items});
+    const options: Io.Dir.HardLinkOptions = .{ .follow_symlinks = false };
+    dir.hardLink(best_path, dir, tmp_path.items, self.io, options) catch |err| switch (err) {
+        error.PathAlreadyExists => {
+            try dir.deleteFile(self.io, tmp_path.items);
+            try dir.hardLink(best_path, dir, tmp_path.items, self.io, options);
+        },
+        else => return err,
+    };
+    try dir.rename(tmp_path.items, dir, object_path.items, self.io);
+}
+
 fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Handle) Error!void {
     var arena: std.heap.ArenaAllocator = .init(self.allocator);
     defer arena.deinit();
@@ -115,27 +135,10 @@ fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Hand
         var item_iter = try manifest.hashHandleIter(handle);
         while (item_iter.next()) |object| {
             if (object.inode == best.inode) continue;
-            var object_path = try self.path_writer.toArrayList(gpa, object.path);
-            defer object_path.deinit(gpa);
-            var tmp_path = try self.path_writer.toArrayListWithSuffix(gpa, object.path, ".destiny.tmp");
-            defer tmp_path.deinit(gpa);
-            std.log.info("    ➡️ {s}", .{object_path.items});
-            if (!args.@"dry-run") {
-                try Io.Dir.hardLink(
-                    dir,
-                    best_path.items,
-                    dir,
-                    tmp_path.items,
-                    self.io,
-                    .{ .follow_symlinks = false },
-                );
-                try Io.Dir.rename(
-                    dir,
-                    tmp_path.items,
-                    dir,
-                    object_path.items,
-                    self.io,
-                );
+            if (args.@"dry-run") {
+                std.log.info("    ➡️ {f}", .{self.fmtPath(object.path)});
+            } else {
+                try self.linkFile(gpa, dir, best_path.items, object);
             }
         }
     }

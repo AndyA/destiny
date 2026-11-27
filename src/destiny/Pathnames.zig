@@ -87,6 +87,11 @@ pub fn internName(self: *Pathnames, parent: Handle, name: []const u8) Allocator.
     return self.internHandle(parent, try self.int.internSlice(name));
 }
 
+pub fn internPeerName(self: *Pathnames, handle: Handle, name: []const u8) Allocator.Error!Handle {
+    assert(handle != ROOT);
+    return self.internName(self.get(handle).parent, name);
+}
+
 test Pathnames {
     var int: Interned = try .init(std.testing.allocator);
     defer int.deinit();
