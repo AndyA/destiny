@@ -322,7 +322,7 @@ pub const command: cli.Command = .{
         }),
         .init(.snapshot, bool, .{
             .help = "Snapshot progress every 10 seconds.",
-            .default_value = false,
+            .default_value = true,
             .short = 's',
         }),
     },
