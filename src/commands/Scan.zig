@@ -290,7 +290,7 @@ pub const command: cli.Command = .{
         .root,
         []const []const u8,
         .{
-            .help = "Root MANIFEST.json or directory.",
+            .help = "Root " ++ K.MANIFEST ++ " or directory.",
             .count = .unlimited,
             .default_value = &.{"."},
         },

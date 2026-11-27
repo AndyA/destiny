@@ -27,19 +27,21 @@ const subcommands = blk: {
     const len = info.field_names.len;
     var subs: [len]cli.Command = undefined;
     for (info.field_names, &subs) |name, *slot| {
-        slot.* = @field(command_handlers, name).command;
+        const command = @field(command_handlers, name).command;
+        assert(std.mem.eql(u8, @tagName(command.name), name));
+        slot.* = command;
     }
     break :blk subs;
 };
 
-const command: cli.Command = .{
+const destiny_command: cli.Command = .{
     .name = .destiny,
     .subcommands = &subcommands,
 };
 
 pub fn main(init: std.process.Init) !void {
     const parsed = try cli.parseAlloc(
-        command,
+        destiny_command,
         init.arena.allocator(),
         try init.minimal.args.toSlice(init.arena.allocator()),
         .{
@@ -56,17 +58,18 @@ pub fn main(init: std.process.Init) !void {
     defer paths.deinit();
 
     if (parsed.subcommand) |subcommand| {
-        print("subcommand: {s}\n", .{@tagName(subcommand)});
-        switch (subcommand) {
-            inline else => |args| {
-                const info = @typeInfo(@TypeOf(command_handlers)).@"struct";
-                const Command = @field(command_handlers, info.field_names[@backingInt(subcommand)]);
-
+        const info = @typeInfo(@TypeOf(command_handlers)).@"struct";
+        const cmd_name = @tagName(subcommand);
+        inline for (info.field_names) |field_name| {
+            if (std.mem.eql(u8, cmd_name, field_name)) {
+                const Command = @field(command_handlers, field_name);
+                const args = @field(subcommand, field_name);
                 var handler: Command = .init(init.gpa, init.io, &paths, args);
                 defer handler.deinit();
                 try handler.run();
-            },
-        }
+                break;
+            }
+        } else unreachable;
     } else {
         std.log.err("No subcommand specified.", .{});
         std.process.exit(1);

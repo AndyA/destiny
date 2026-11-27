@@ -25,12 +25,7 @@ pub fn init(allocator: Allocator, io: Io, pathnames: *Pathnames, args: Args) Sel
     };
 }
 
-pub fn deinit(self: *Self) void {
-    for (self.search.items) |*item|
-        item.deinit();
-    self.search.deinit(self.allocator);
-    self.path_writer.deinit();
-}
+pub fn deinit(_: *Self) void {}
 
 pub fn run(self: *Self) !void {
     _ = self;
@@ -45,7 +40,7 @@ pub const command: cli.Command = .{
         .root,
         []const []const u8,
         .{
-            .help = "Root MANIFEST.json or directory.",
+            .help = "Root " ++ K.MANIFEST ++ " or directory.",
             .count = .unlimited,
             .default_value = &.{"."},
         },
