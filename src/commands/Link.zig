@@ -105,38 +105,34 @@ fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Hand
 
     const args = self.args.kind.args;
     if (try self.findBestInode(gpa, manifest, handle)) |best| {
-        const sample = manifest.get(handle);
-        std.log.info("  {x:0>64}", .{sample.hash});
-
         var best_path = try self.path_writer.toArrayList(gpa, best.path);
         defer best_path.deinit(gpa);
+        std.log.info("  {s} ➡️", .{best_path.items});
 
-        {
-            var item_iter = try manifest.hashHandleIter(handle);
-            while (item_iter.next()) |object| {
-                if (object.inode == best.inode) continue;
-                var object_path = try self.path_writer.toArrayList(gpa, object.path);
-                defer object_path.deinit(gpa);
-                var tmp_path = try self.path_writer.toArrayListWithSuffix(gpa, object.path, ".destiny.tmp");
-                defer tmp_path.deinit(gpa);
-                std.log.info("    {s} -> {s}", .{ best_path.items, object_path.items });
-                if (!args.@"dry-run") {
-                    try Io.Dir.hardLink(
-                        dir,
-                        best_path.items,
-                        dir,
-                        tmp_path.items,
-                        self.io,
-                        .{ .follow_symlinks = false },
-                    );
-                    try Io.Dir.rename(
-                        dir,
-                        tmp_path.items,
-                        dir,
-                        object_path.items,
-                        self.io,
-                    );
-                }
+        var item_iter = try manifest.hashHandleIter(handle);
+        while (item_iter.next()) |object| {
+            if (object.inode == best.inode) continue;
+            var object_path = try self.path_writer.toArrayList(gpa, object.path);
+            defer object_path.deinit(gpa);
+            var tmp_path = try self.path_writer.toArrayListWithSuffix(gpa, object.path, ".destiny.tmp");
+            defer tmp_path.deinit(gpa);
+            std.log.info("    ➡️ {s}", .{object_path.items});
+            if (!args.@"dry-run") {
+                try Io.Dir.hardLink(
+                    dir,
+                    best_path.items,
+                    dir,
+                    tmp_path.items,
+                    self.io,
+                    .{ .follow_symlinks = false },
+                );
+                try Io.Dir.rename(
+                    dir,
+                    tmp_path.items,
+                    dir,
+                    object_path.items,
+                    self.io,
+                );
             }
         }
     }
