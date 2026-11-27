@@ -146,11 +146,11 @@ fn linkItem(self: *Self, dir: Io.Dir, manifest: *Manifest, handle: Manifest.Hand
 }
 
 fn link(self: *Self, root: []const u8) Error!void {
-    const openOptions: Io.Dir.OpenOptions = .{ .follow_symlinks = false };
     const dir: Io.Dir = blk: {
+        const options: Io.Dir.OpenOptions = .{ .follow_symlinks = false };
         if (std.fs.path.isAbsolute(root))
-            break :blk try Io.Dir.openDirAbsolute(self.io, root, openOptions);
-        break :blk try Io.Dir.cwd().openDir(self.io, root, openOptions);
+            break :blk try Io.Dir.openDirAbsolute(self.io, root, options);
+        break :blk try Io.Dir.cwd().openDir(self.io, root, options);
     };
     defer dir.close(self.io);
 
