@@ -1,8 +1,8 @@
 {"path":"README.md","inode":"402466422","size":"2411","perms":"100644","mtime":"1795711583399681","hash":"9af6d26c634bc40b40013b6bff211c12774b3d72ce1e99203d3a560aac9bd69c"}
 {"path":"build.zig","inode":"401462719","size":"1576","perms":"100644","mtime":"1795610422267244","hash":"6b0ef905e647d869a2539ad49871bb2ad88dceb86ee443fb729b032c323c7622"}
 {"path":"build.zig.zon","inode":"401462720","size":"522","perms":"100644","mtime":"1795015386347382","hash":"aa9bc9cc6a350224b1206040d5c361ca38c53ff80527b7c457ba2fe48283afaf"}
-{"path":"src/commands/Link.zig","inode":"402893479","size":"1529","perms":"100644","mtime":"1795782755616048","hash":"17c40eade62b14ec484c1f9b8c3239d5001c3fa087cfd8ffeb826de23d34c441"}
-{"path":"src/commands/Scan.zig","inode":"402893480","size":"10264","perms":"100644","mtime":"1795782792533526","hash":"c9948e868bc36403c4fb2fe8cd9ba4e344a336cd17e1e3674ee438f528aff27f"}
+{"path":"src/commands/Link.zig","inode":"402893479","size":"1402","perms":"100644","mtime":"1795788362181271","hash":"0f88156cdb2cb282311e4e87e877e052eb5248fa812f61c97feefa6b9d76153f"}
+{"path":"src/commands/Scan.zig","inode":"402893480","size":"10271","perms":"100644","mtime":"1795788373602054","hash":"82de6132ff04ca91304bf6d19573d440abb927e5f9b0399a963d8fb4bd56c6bc"}
 {"path":"src/destiny/Interned.zig","inode":"402238469","size":"2475","perms":"100644","mtime":"1795426923382392","hash":"60b6dadbc3366b8ad43963dc3f3d06bdc5e97fc8723cb8866235a82a07e7366f"}
 {"path":"src/destiny/Manifest.zig","inode":"402893442","size":"18734","perms":"100644","mtime":"1795782755605017","hash":"417bac6d618ef8b73e3f2f1f6fa07cdf5403cc0c91a0b0cdbe16f174589dba43"}
 {"path":"src/destiny/Object.zig","inode":"401721459","size":"237","perms":"100644","mtime":"1795081218606286","hash":"a1805bf44859eded2ac8790392641d43c446476b2ddb05ee507f94f27782c17d"}
@@ -13,10 +13,10 @@
 {"path":"src/destiny/file_iterator.zig","inode":"402466423","size":"7688","perms":"100644","mtime":"1795625725729177","hash":"85f776f577717431ce51153b641b076b7dfb2f9add5cdc1839a40d74851b2c56"}
 {"path":"src/destiny/smoother.zig","inode":"402724504","size":"728","perms":"100644","mtime":"1795693070530510","hash":"6deff432af84ee13970de384a187d8c8e04d84c839edb629511532347da0c20a"}
 {"path":"src/destiny/tools.zig","inode":"402466424","size":"590","perms":"100644","mtime":"1795524519003514","hash":"9888eb9df4b4201e4a4d70423c6c1f32a2bd60f5b4503e119cea3ee91e85e3ba"}
-{"path":"src/main.zig","inode":"402893482","size":"2239","perms":"100644","mtime":"1795782755616530","hash":"47dbf2b3fd7f1e04b23449012375d294d57f457e2e269eb7f9082b15a7fd53a8"}
+{"path":"src/main.zig","inode":"402893482","size":"2365","perms":"100644","mtime":"1795788408540270","hash":"c85353ec424622b1a0ab5171267f8de3270d208b8936682de8ccab6378ba6809"}
 {"path":"src/mule.zig","inode":"402724506","size":"389","perms":"100644","mtime":"1795693070531267","hash":"ecbbf5f0a82747a7629ff6bcc55cdb1570224902382deba606738b0ed07da36f"}
 {"path":"tmp/mf.json","inode":"402646470","size":"434","perms":"100644","mtime":"1795620486726531","hash":"e80328779d666cefc0198b54caea4464df45096ae7853a36fc2ef883a249dab9"}
-{"path":"zig-out/bin/destiny","inode":"402893593","size":"560360","perms":"100755","mtime":"1795782802632914","hash":"c8364035e36f3e6006b23e9849c52c8b1b17e972bbe0972ad2d9cfda70ac769a"}
+{"path":"zig-out/bin/destiny","inode":"402901511","size":"561448","perms":"100755","mtime":"1795788412780012","hash":"447a09faca73d38fcdf8cea7fb7941875071767c631374895bdf6f7b751ff7dc"}
 {"path":"zig-out/bin/mule","inode":"402731351","size":"396920","perms":"100755","mtime":"1795693211280013","hash":"478e6d5f956af0154ebdca0084abe2a3833afaaec9b67610a7103ce43fb6e3de"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/LICENSE","inode":"401654849","size":"1067","perms":"100644","mtime":"1795015386326302","hash":"667adbc5a624bc8a80b22e79e19c99c50998c796ba836e08f42b7febd436f465"}
 {"path":"zig-pkg/cli-0.1.0-bYY-q8pUAQCC9Xvil9d9KRsJodFc2u6bA_UX8y_b5A0f/build.zig","inode":"401654851","size":"1430","perms":"100644","mtime":"1795015386326800","hash":"89ab02d77efc958a804dcd17fc330ea831aa4abc33c1863bcc8078cb0b97164b"}
