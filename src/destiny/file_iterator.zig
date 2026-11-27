@@ -215,3 +215,7 @@ pub fn FileIterator(comptime Context: type, comptime openOptions: Io.Dir.OpenOpt
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

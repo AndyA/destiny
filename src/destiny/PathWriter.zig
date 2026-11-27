@@ -89,3 +89,7 @@ test PathWriter {
 
     try std.testing.expectEqualDeep("/usr/local/bin", writer.buffered());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

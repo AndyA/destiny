@@ -99,3 +99,7 @@ test Pathnames {
     const another_local_id = try paths.internName(usr_id, "local");
     try std.testing.expectEqual(2, @backingInt(another_local_id));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

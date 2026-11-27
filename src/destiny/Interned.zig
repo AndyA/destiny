@@ -79,3 +79,7 @@ test Interned {
     try std.testing.expectEqual(1, @backingInt(another_one));
     try std.testing.expectEqualDeep("one", int.get(another_one));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

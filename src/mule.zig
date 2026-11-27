@@ -12,3 +12,7 @@ pub fn main(init: std.process.Init) !void {
         print("{d:>3}: {d:>8}\n", .{ i, smoo.update(if (i == 0) 0 else 100_000) });
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -326,3 +326,7 @@ pub const command: cli.Command = .{
         }),
     },
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

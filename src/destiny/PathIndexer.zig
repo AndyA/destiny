@@ -69,3 +69,7 @@ test PathIndexer {
     try std.testing.expectEqual(@as(Pathnames.Handle, @fromBackingInt(3)), paths.get(ulb_id).parent);
     try std.testing.expectEqual(@as(Pathnames.Handle, @fromBackingInt(3)), paths.get(uls_id).parent);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

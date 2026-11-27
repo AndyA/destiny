@@ -566,3 +566,7 @@ pub fn loadBelow(
 pub fn load(self: *Manifest, io: Io, dir: Io.Dir, name: []const u8) LoadError!void {
     try self.loadBelow(self, io, dir, name, Pathnames.ROOT);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

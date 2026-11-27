@@ -8,15 +8,6 @@ const Allocator = std.mem.Allocator;
 const Interned = @import("destiny/Interned.zig");
 const Pathnames = @import("destiny/Pathnames.zig");
 
-test {
-    _ = @import("destiny/Interned.zig");
-    _ = @import("destiny/Pathnames.zig");
-    _ = @import("destiny/PathIndexer.zig");
-    _ = @import("destiny/PathWriter.zig");
-    _ = @import("destiny/Manifest.zig");
-    _ = @import("destiny/file_iterator.zig");
-}
-
 const command_handlers = .{
     .scan = @import("commands/Scan.zig"),
     // .link = @import("commands/Link.zig"),
@@ -74,4 +65,8 @@ pub fn main(init: std.process.Init) !void {
         std.log.err("No subcommand specified.", .{});
         std.process.exit(1);
     }
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

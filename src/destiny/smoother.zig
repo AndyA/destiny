@@ -21,3 +21,7 @@ pub fn Smoother(T: type, current_weight: T, sample_weight: T) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

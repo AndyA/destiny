@@ -18,3 +18,7 @@ pub fn sha256File(io: Io, file: Io.File) Io.File.ReadStreamingError!u256 {
     const hash = hasher.finalResult();
     return std.mem.readInt(u256, &hash, .big);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
