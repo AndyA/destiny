@@ -10,7 +10,7 @@ const Pathnames = @import("destiny/Pathnames.zig");
 
 const command_handlers = .{
     .scan = @import("commands/Scan.zig"),
-    // .link = @import("commands/Link.zig"),
+    .link = @import("commands/Link.zig"),
 };
 
 const subcommands = blk: {
